@@ -81,6 +81,8 @@ export class World {
   rt = new Map<string, Runtime>()
   width = 1
   height = 1
+  /** Lowest point chimes bounce off, in px (the tray sits below it). */
+  floor = Infinity
   /** Objects currently held by a pointer; the simulation leaves them alone. */
   held = new Set<string>()
   /** Set when the simulation itself edits saved parameters (orbit evolve). */
@@ -162,9 +164,10 @@ export class World {
             px = Math.min(this.width - rad, Math.max(rad, px))
             bounced = true
           }
-          if (py < rad || py > this.height - rad) {
+          const floor = Math.min(this.height, this.floor)
+          if (py < rad || py > floor - rad) {
             hy = py < rad ? Math.abs(hy) : -Math.abs(hy)
-            py = Math.min(this.height - rad, Math.max(rad, py))
+            py = Math.min(floor - rad, Math.max(rad, py))
             bounced = true
           }
           if (bounced) ring(o, time + dt, 0.45 + o.speed * 0.3)

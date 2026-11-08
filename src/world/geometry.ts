@@ -1,19 +1,24 @@
-import type { Orbit, Pulse, WorldObject } from './types'
+import type { Kind, Orbit, Pulse, WorldObject } from './types'
+
+/** radius = unit × (a + size × b) */
+const RADIUS: Record<Kind, [number, number]> = {
+  drone: [0.07, 0.13],
+  chime: [0.012, 0.016],
+  pulse: [0.02, 0.022],
+  orbit: [0.06, 0.13],
+  texture: [0.11, 0.17],
+}
 
 /** Visual and collision radius of an object, in px. */
 export function radius(o: WorldObject, unit: number): number {
-  switch (o.kind) {
-    case 'drone':
-      return unit * (0.07 + o.size * 0.13)
-    case 'chime':
-      return unit * (0.012 + o.size * 0.016)
-    case 'pulse':
-      return unit * (0.02 + o.size * 0.022)
-    case 'orbit':
-      return unit * (0.06 + o.size * 0.13)
-    case 'texture':
-      return unit * (0.11 + o.size * 0.17)
-  }
+  const [a, b] = RADIUS[o.kind]
+  return unit * (a + o.size * b)
+}
+
+/** Inverse of radius(): the size that gives a radius, clamped to 0–1. */
+export function sizeForRadius(kind: Kind, r: number, unit: number): number {
+  const [a, b] = RADIUS[kind]
+  return Math.min(1, Math.max(0, (r / unit - a) / b))
 }
 
 /** How far a pulse's ripples travel before fading out. */
@@ -60,3 +65,19 @@ export function hitRadius(o: WorldObject, unit: number): number {
       return r * 0.75
   }
 }
+
+/** Radius of the selection ring drawn around an object. */
+export function selectionRadius(o: WorldObject, unit: number): number {
+  switch (o.kind) {
+    case 'orbit':
+      return beadRadius(o, unit, Math.max(0, ...o.beads)) + 14
+    case 'drone':
+      return radius(o, unit) * 0.8
+    case 'texture':
+      return radius(o, unit) * 0.78
+    default:
+      return hitRadius(o, unit) + 4
+  }
+}
+
+export const HANDLE_ANGLE = -Math.PI / 4

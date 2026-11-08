@@ -1,7 +1,10 @@
 import * as Tone from 'tone'
 import type { Harmony } from '../music/theory'
 import type { Settings, SoundEvent, WorldObject } from '../world/types'
-import { createVoice, voiceSignature, type Buses, type Voice } from './voices'
+import { createVoice, voiceSignature, withClock, type Buses, type Voice } from './voices'
+
+/** Master gain at full volume; the compressor and limiter keep peaks in check. */
+const MAKEUP = 2.4
 
 const SAMPLES = ['rain', 'wind', 'waves', 'embers', 'piano-c3', 'piano-c4', 'piano-c5']
 
@@ -69,7 +72,7 @@ export class AudioEngine {
 
   applySettings(s: Settings) {
     if (!this.ready) return
-    this.master.gain.rampTo(s.volume * 0.9, 0.3)
+    this.master.gain.rampTo(s.volume * MAKEUP, 0.3)
     this.reverbReturn.gain.rampTo(0.15 + s.space * 1.1, 0.5)
     this.delay.feedback.rampTo(0.2 + s.space * 0.4, 0.5)
     // A dotted-eighth echo at the current tempo.
@@ -77,8 +80,12 @@ export class AudioEngine {
   }
 
   /** Bring voices in line with the objects on the canvas. */
-  sync(objects: WorldObject[], h: Harmony) {
+  sync(objects: WorldObject[], h: Harmony, time = Tone.now()) {
     if (!this.ready) return
+    withClock(time, () => this.syncAt(objects, h))
+  }
+
+  private syncAt(objects: WorldObject[], h: Harmony) {
     const seen = new Set<string>()
     for (const o of objects) {
       seen.add(o.id)
@@ -109,7 +116,7 @@ export class AudioEngine {
   /** Soft-mute for pausing; voices keep their state. */
   setPaused(paused: boolean, volume: number) {
     if (!this.ready) return
-    this.master.gain.rampTo(paused ? 0 : volume * 0.9, paused ? 0.6 : 1.2)
+    this.master.gain.rampTo(paused ? 0 : volume * MAKEUP, paused ? 0.6 : 1.2)
   }
 
   level(): number {

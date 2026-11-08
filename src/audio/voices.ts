@@ -20,14 +20,29 @@ export interface Voice {
 
 const pan = (x: number) => Math.max(-0.8, Math.min(0.8, (x - 0.5) * 1.5))
 
+/**
+ * Audio time that parameter changes are scheduled at. Inside a transport
+ * callback this is the callback's time, which keeps Tone's timing exact.
+ */
+let clock: number | null = null
+export function withClock<T>(time: number, fn: () => T): T {
+  clock = time
+  try {
+    return fn()
+  } finally {
+    clock = null
+  }
+}
+const at = () => clock ?? Tone.now()
+
 const lastSet = new WeakMap<object, number>()
 
 /** Ramp a parameter only when its target has actually moved; updates arrive every tick. */
-function ramp(param: { rampTo(v: number, t: number): unknown }, value: number, time: number) {
+function ramp(param: { rampTo(v: number, t: number, start?: number): unknown }, value: number, time: number) {
   const prev = lastSet.get(param)
   if (prev !== undefined && Math.abs(prev - value) <= Math.abs(value) * 0.004 + 1e-4) return
   lastSet.set(param, value)
-  param.rampTo(value, time)
+  param.rampTo(value, time, at())
 }
 
 /**
@@ -63,8 +78,9 @@ class Channel {
   }
 
   release(fade = 2.5) {
-    this.level.gain.cancelScheduledValues(Tone.now())
-    this.level.gain.rampTo(0, fade * 0.6)
+    const t = at()
+    this.level.gain.cancelScheduledValues(t)
+    this.level.gain.rampTo(0, fade * 0.6, t)
     window.setTimeout(() => {
       for (const n of this.nodes) n.dispose()
       this.level.dispose()
@@ -98,7 +114,7 @@ class DroneVoice implements Voice {
     breath.connect(this.ch.level)
     // Slow swell so the drone breathes rather than sits still.
     const lfo = this.ch.own(
-      new Tone.LFO({ frequency: 0.04 + Math.random() * 0.06, min: 0.55, max: 1 }).start(),
+      new Tone.LFO({ frequency: 0.04 + Math.random() * 0.06, min: 0.55, max: 1 }).start(at()),
     )
     lfo.connect(breath.gain)
     this.filter = this.ch.own(
@@ -109,10 +125,10 @@ class DroneVoice implements Voice {
       new Tone.FatOscillator({ type: this.spec.type, count: this.spec.count, spread: this.spec.spread }),
     )
     this.osc.volume.value = -6
-    this.osc.connect(this.filter).start()
+    this.osc.connect(this.filter).start(at())
     this.shimmer = this.ch.own(new Tone.Oscillator({ type: 'sine' }))
     this.shimmer.volume.value = Tone.gainToDb(Math.max(0.0001, this.spec.octave))
-    this.shimmer.connect(this.filter).start()
+    this.shimmer.connect(this.filter).start(at())
   }
 
   update(o: WorldObject, h: Harmony) {
@@ -121,8 +137,8 @@ class DroneVoice implements Voice {
     if (n !== this.note) {
       const f = midiToFreq(n)
       const glide = this.note < 0 ? 0.01 : 1.6
-      this.osc.frequency.rampTo(f, glide)
-      this.shimmer.frequency.rampTo(f * 2, glide)
+      this.osc.frequency.rampTo(f, glide, at())
+      this.shimmer.frequency.rampTo(f * 2, glide, at())
       this.note = n
     }
     ramp(this.filter.frequency, this.spec.cutoff * (0.45 + d.x * 1.3), 0.4)
@@ -166,23 +182,23 @@ function makeStruck(sound: string, buses: Buses, length = 0.5): Struck {
       break
     case 'bell':
       inst = bell(2.6, 3.01, 11)
-      inst.volume.value = -14
+      inst.volume.value = 5
       break
     case 'glass':
       inst = bell(3.6, 5.07, 2.4)
-      inst.volume.value = -12
+      inst.volume.value = 2
       break
     case 'mallet':
       inst = bell(1.4, 4, 2.2)
-      inst.volume.value = -9
+      inst.volume.value = 3
       break
     case 'marimba':
       inst = bell(decay, 3.98, 1.4)
-      inst.volume.value = -8
+      inst.volume.value = -1
       break
     case 'musicbox':
       inst = bell(decay * 1.2, 6.98, 1.6)
-      inst.volume.value = -15
+      inst.volume.value = 0
       break
     case 'pluck':
       inst = new Tone.PolySynth(Tone.Synth, {
@@ -196,7 +212,7 @@ function makeStruck(sound: string, buses: Buses, length = 0.5): Struck {
         oscillator: { type: 'sine' },
         envelope: { attack: 0.04, decay: 2.8, sustain: 0, release: 2.4 },
       })
-      inst.volume.value = -5
+      inst.volume.value = -6
   }
   if (inst instanceof Tone.PolySynth) inst.maxPolyphony = 10
   return inst
@@ -300,6 +316,9 @@ class OrbitVoice implements Voice {
 
 // --------------------------------------------------------------- texture
 
+/** Evens out the loudness of the rendered loops (measured, not guessed). */
+const TEXTURE_TRIM = { rain: 1.4, wind: 1, waves: 1, embers: 1.9 }
+
 class TextureVoice implements Voice {
   private ch: Channel
   private player: Tone.Player
@@ -310,7 +329,7 @@ class TextureVoice implements Voice {
     const sway = this.ch.own(new Tone.Gain(1))
     sway.connect(this.ch.level)
     const lfo = this.ch.own(
-      new Tone.LFO({ frequency: 0.02 + Math.random() * 0.03, min: 0.6, max: 1 }).start(),
+      new Tone.LFO({ frequency: 0.02 + Math.random() * 0.03, min: 0.6, max: 1 }).start(at()),
     )
     lfo.connect(sway.gain)
     this.filter = this.ch.own(new Tone.Filter({ type: 'lowpass', frequency: 6000, rolloff: -12 }))
@@ -319,12 +338,13 @@ class TextureVoice implements Voice {
     this.player.loop = true
     this.player.connect(this.filter)
     const buf = buses.buffers[o.sound]
-    this.player.start(Tone.now() + 0.05, Math.random() * buf.duration)
+    this.player.start(at() + 0.05, Math.random() * buf.duration)
   }
 
   update(o: WorldObject) {
     ramp(this.filter.frequency, 700 + Math.pow(1 - o.y, 1.6) * 11000, 0.5)
-    this.ch.set(o.volume * (0.3 + 0.7 * o.size) * 0.55, o.x, 1.5)
+    const trim = TEXTURE_TRIM[(o as Texture).sound]
+    this.ch.set(o.volume * (0.3 + 0.7 * o.size) * 0.75 * trim, o.x, 1.5)
   }
 
   release() {
