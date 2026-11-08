@@ -2,10 +2,9 @@ import { useRef } from 'react'
 import { app } from '../app/controller'
 import { useStore } from '../app/store'
 import { noteName } from '../music/theory'
-import { BEAD_MAX, BEAD_MIN } from '../world/geometry'
 import { KIND_LABELS } from '../world/objects'
 import { KIND_COLORS, TEXTURE_COLORS } from '../world/palette'
-import { baseNote, beadNote, harmonyOf } from '../world/pitch'
+import { OCTAVE_MAX, OCTAVE_MIN, baseNote, beadNote, clampBead, harmonyOf, joinBead, splitBead } from '../world/pitch'
 import type { Orbit, WorldObject } from '../world/types'
 import { Segmented, Slider } from './controls'
 import { CloseIcon, CopyIcon, MinusIcon, MutedIcon, PlusIcon, ShuffleIcon, SpeakerIcon, TrashIcon } from './icons'
@@ -37,7 +36,7 @@ export function Inspector() {
             {note !== null && (
               <>
                 {' · '}
-                <span className="note">{noteName(note)}</span>
+                <span className="note">{noteName(note, h)}</span>
               </>
             )}
           </p>
@@ -151,8 +150,15 @@ function OrbitControls({ o }: { o: Orbit }) {
   // Keep the mute flags lined up with the steps whenever steps are added or removed.
   const setBeads = (beads: number[]) => set({ beads, muted: beads.map((_, i) => muted[i] ?? false) })
   const toggleMute = (i: number) => set({ muted: muted.map((m, j) => (j === i ? !m : m)) })
+  // Mostly within the base octave, with the odd step an octave up or down.
   const shuffle = () =>
-    setBeads(o.beads.map(() => Math.floor(Math.random() * 7) - (Math.random() < 0.2 ? 2 : 0)))
+    setBeads(
+      o.beads.map(() => {
+        const r = Math.random()
+        const octave = r < 0.12 ? -1 : r > 0.85 ? 1 : 0
+        return joinBead(Math.floor(Math.random() * h.scale.steps.length), octave, h)
+      }),
+    )
 
   return (
     <>
@@ -192,22 +198,38 @@ function OrbitControls({ o }: { o: Orbit }) {
             </button>
           </div>
         </div>
-        <div className="beads">
-          {o.beads.map((step, i) => (
-            <BeadColumn
-              key={i}
-              value={step}
-              note={noteName(beadNote(base, step, h))}
-              index={i}
-              muted={muted[i]}
-              onToggleMute={() => toggleMute(i)}
-              onChange={(v) => {
-                const next = [...o.beads]
-                next[i] = v
-                setBeads(next)
-              }}
-            />
-          ))}
+        <div className="steps" role="group" aria-label="Pattern steps">
+          <div className="step-head" aria-hidden>
+            <span />
+            <span>Note in scale</span>
+            <span />
+            <span>Octave</span>
+          </div>
+          {o.beads.map((step, i) => {
+            const { degree, octave } = splitBead(step, h)
+            const change = (v: number) => {
+              const next = [...o.beads]
+              next[i] = clampBead(v, h)
+              if (next[i] === o.beads[i]) return
+              setBeads(next)
+              app.previewStep(o.id, i)
+            }
+            return (
+              <StepRow
+                key={i}
+                index={i}
+                degree={degree}
+                octave={octave}
+                size={h.scale.steps.length}
+                note={noteName(beadNote(base, step, h), h)}
+                tickNote={(d) => noteName(beadNote(base, joinBead(d, octave, h), h), h)}
+                muted={muted[i]}
+                onToggleMute={() => toggleMute(i)}
+                onDegree={(d) => change(joinBead(d, octave, h))}
+                onOctave={(oc) => change(joinBead(degree, oc, h))}
+              />
+            )
+          })}
         </div>
       </div>
       <Slider label="Note length" value={o.length} onChange={(length) => set({ length })} hint={['Short', 'Ringing']} format={pctFmt} />
@@ -223,67 +245,53 @@ function OrbitControls({ o }: { o: Orbit }) {
       <Slider label="Evolve" value={o.evolve} onChange={(evolve) => set({ evolve })} hint={['Fixed', 'Restless']} format={pctFmt} />
       <Slider label="Volume" value={o.volume} onChange={(volume) => set({ volume })} format={pctFmt} />
       <Slider label="Size" value={o.size} onChange={(size) => set({ size })} hint={['Small & quick', 'Big & slow']} format={pctFmt} />
-      <p className="tip">Drag a bead on the canvas outward to raise its note, inward to lower it. Tap the speaker under a step to mute it.</p>
+      <p className="tip">Drag a bead on the canvas outward to raise its note, inward to lower it.</p>
     </>
   )
 }
 
-const RANGE = BEAD_MAX - BEAD_MIN
+const signed = (n: number) => (n > 0 ? `+${n}` : n < 0 ? `\u2212${-n}` : '0')
 
-/** One step of the pattern: drag up or down to change its note. */
-function BeadColumn({
-  value,
-  note,
+/**
+ * One step of the pattern, as a row: mute, a note slider that snaps to each
+ * note of the scale within one octave, and an octave stepper.
+ */
+function StepRow({
   index,
+  degree,
+  octave,
+  size,
+  note,
+  tickNote,
   muted,
-  onChange,
+  onDegree,
+  onOctave,
   onToggleMute,
 }: {
-  value: number
-  note: string
   index: number
+  degree: number
+  octave: number
+  /** Notes per octave in the current scale. */
+  size: number
+  note: string
+  tickNote: (degree: number) => string
   muted: boolean
-  onChange: (v: number) => void
+  onDegree: (d: number) => void
+  onOctave: (o: number) => void
   onToggleMute: () => void
 }) {
   const ref = useRef<HTMLDivElement>(null)
-  const setFrom = (clientY: number) => {
+  const last = size - 1
+  const setFrom = (clientX: number) => {
     const r = ref.current!.getBoundingClientRect()
-    const t = 1 - Math.min(1, Math.max(0, (clientY - r.top) / r.height))
-    const v = Math.round(BEAD_MIN + t * RANGE)
-    if (v !== value) onChange(v)
+    const t = Math.min(1, Math.max(0, (clientX - r.left) / r.width))
+    onDegree(Math.round(t * last))
   }
-  const pos = (value - BEAD_MIN) / RANGE
+  const pos = (d: number) => `${(d / last) * 100}%`
   return (
-    <div className={muted ? 'bead-col muted' : 'bead-col'}>
-      <div
-        ref={ref}
-        className="bead-track"
-        role="slider"
-        tabIndex={0}
-        aria-label={`Step ${index + 1} note`}
-        aria-valuemin={BEAD_MIN}
-        aria-valuemax={BEAD_MAX}
-        aria-valuenow={value}
-        aria-valuetext={note}
-        onPointerDown={(e) => {
-          e.currentTarget.setPointerCapture(e.pointerId)
-          setFrom(e.clientY)
-        }}
-        onPointerMove={(e) => {
-          if (e.currentTarget.hasPointerCapture(e.pointerId)) setFrom(e.clientY)
-        }}
-        onKeyDown={(e) => {
-          if (e.key === 'ArrowUp') onChange(Math.min(BEAD_MAX, value + 1))
-          if (e.key === 'ArrowDown') onChange(Math.max(BEAD_MIN, value - 1))
-        }}
-      >
-        <span className="bead-stem" style={{ height: `${pos * 100}%` }} />
-        <span className="bead-dot" style={{ bottom: `calc(${pos * 100}% - 6px)` }} />
-      </div>
-      <span className="bead-note">{note}</span>
+    <div className={muted ? 'step-row muted' : 'step-row'}>
       <button
-        className="bead-mute"
+        className="step-mute"
         aria-label={`Mute step ${index + 1}`}
         aria-pressed={muted}
         title={muted ? 'Unmute step' : 'Mute step'}
@@ -291,6 +299,65 @@ function BeadColumn({
       >
         {muted ? <MutedIcon /> : <SpeakerIcon />}
       </button>
+      <div
+        ref={ref}
+        className="note-track"
+        role="slider"
+        tabIndex={0}
+        aria-label={`Step ${index + 1} note`}
+        aria-valuemin={0}
+        aria-valuemax={last}
+        aria-valuenow={degree}
+        aria-valuetext={note}
+        onPointerDown={(e) => {
+          e.currentTarget.setPointerCapture(e.pointerId)
+          setFrom(e.clientX)
+        }}
+        onPointerMove={(e) => {
+          if (e.currentTarget.hasPointerCapture(e.pointerId)) setFrom(e.clientX)
+        }}
+        onKeyDown={(e) => {
+          const step = { ArrowRight: 1, ArrowUp: 1, ArrowLeft: -1, ArrowDown: -1 }[e.key]
+          if (step) {
+            e.preventDefault()
+            onDegree(Math.min(last, Math.max(0, degree + step)))
+          }
+          if (e.key === 'Home') onDegree(0)
+          if (e.key === 'End') onDegree(last)
+        }}
+      >
+        <span className="note-line" />
+        <span className="note-fill" style={{ width: pos(degree) }} />
+        {Array.from({ length: size }, (_, d) => (
+          <span
+            key={d}
+            className={d === 0 ? 'note-tick root' : d <= degree ? 'note-tick passed' : 'note-tick'}
+            style={{ left: pos(d) }}
+            title={tickNote(d)}
+          />
+        ))}
+        <span className="note-thumb" style={{ left: pos(degree) }} />
+      </div>
+      <span className="step-note">{note}</span>
+      <div className="octave" role="group" aria-label={`Step ${index + 1} octave`}>
+        <button
+          aria-label={`Step ${index + 1} octave down`}
+          disabled={octave <= OCTAVE_MIN}
+          onClick={() => onOctave(octave - 1)}
+        >
+          <MinusIcon />
+        </button>
+        <span className={octave === 0 ? 'octave-value' : 'octave-value shifted'} aria-live="polite">
+          {signed(octave)}
+        </span>
+        <button
+          aria-label={`Step ${index + 1} octave up`}
+          disabled={octave >= OCTAVE_MAX}
+          onClick={() => onOctave(octave + 1)}
+        >
+          <PlusIcon />
+        </button>
+      </div>
     </div>
   )
 }

@@ -1,4 +1,5 @@
-import { BEAD_MAX, BEAD_MIN, radius, reach, solidRadius } from './geometry'
+import { radius, reach, solidRadius } from './geometry'
+import { clampBead, harmonyOf } from './pitch'
 import type { Orbit, Settings, SoundEvent, WorldObject } from './types'
 
 export interface Ripple {
@@ -264,7 +265,7 @@ export class World {
             if (r.steps % n === 0 && o.evolve > 0 && Math.random() < o.evolve * 0.7) {
               const b = Math.floor(Math.random() * n)
               const shift = (Math.random() < 0.5 ? -1 : 1) * (Math.random() < 0.7 ? 1 : 2)
-              o.beads[b] = Math.min(BEAD_MAX, Math.max(BEAD_MIN, o.beads[b] + shift))
+              o.beads[b] = clampBead(o.beads[b] + shift, harmonyOf(settings))
               this.mutated = true
             }
             // Turn one step to bring the next bead to the marker: clockwise

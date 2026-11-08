@@ -120,6 +120,16 @@ export class Controller {
     }
   }
 
+  /** Play one orbit step right away, so editing a note lets you hear it. */
+  previewStep(id: string, bead: number) {
+    const { phase, playing } = this.ui.get()
+    const o = this.find(id)
+    if (phase !== 'running' || !playing || o?.kind !== 'orbit') return
+    const time = Tone.now() + 0.02
+    this.world.runtime(o).lit[bead] = time
+    engine.play({ type: 'orbit', id, time, bead }, o, harmonyOf(this.settings))
+  }
+
   togglePlay() {
     const { phase, playing } = this.ui.get()
     if (phase !== 'running') return

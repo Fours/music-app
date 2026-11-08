@@ -1,6 +1,6 @@
 import { app } from '../app/controller'
 import { useStore } from '../app/store'
-import { KEYS, SCALES } from '../music/theory'
+import { KEYS, SCALES, keyName, scaleById } from '../music/theory'
 import { PRESETS } from '../world/presets'
 import { Slider } from './controls'
 import { CloseIcon } from './icons'
@@ -44,6 +44,7 @@ export function SettingsPanel() {
             <span className="label">Key</span>
           </div>
           <div className="key-grid">
+            {/* Spelled for the current mood, so the picker matches the names everywhere else. */}
             {KEYS.map((k, i) => (
               <button
                 key={k}
@@ -51,7 +52,7 @@ export function SettingsPanel() {
                 onClick={() => app.setSettings({ root: i })}
                 aria-pressed={s.root === i}
               >
-                {k}
+                {keyName({ root: i, scale: scaleById(s.scale) })}
               </button>
             ))}
           </div>

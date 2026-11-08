@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { engine } from '../audio/engine'
 import { app } from '../app/controller'
-import { BEAD_MAX, BEAD_MIN, HANDLE_ANGLE, hitRadius, radius, selectionRadius, sizeForRadius } from '../world/geometry'
+import { BEAD_SPREAD, HANDLE_ANGLE, hitRadius, radius, selectionRadius, sizeForRadius } from '../world/geometry'
+import { clampBead, harmonyOf } from '../world/pitch'
 import { beadPositions, draw } from '../world/render'
 import type { Orbit, WorldObject } from '../world/types'
 
@@ -208,9 +209,9 @@ export function Stage() {
           const orbit = o as Orbit
           const c = center(o)
           const d = Math.hypot(p.x - c.x, p.y - c.y)
-          const per = radius(o, world.unit) * 0.075
+          const per = radius(o, world.unit) * BEAD_SPREAD
           const step = Math.round(gesture.startStep + (d - gesture.startDist) / per)
-          const clamped = Math.min(BEAD_MAX, Math.max(BEAD_MIN, step))
+          const clamped = clampBead(step, harmonyOf(app.ui.get().settings))
           if (clamped !== orbit.beads[gesture.bead]) {
             orbit.beads[gesture.bead] = clamped
             app.bump()

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { app } from '../app/controller'
 import { useStore } from '../app/store'
-import { KEYS, scaleById } from '../music/theory'
+import { keyName, scaleById } from '../music/theory'
 import { PauseIcon, PlayIcon, ScenesIcon, SlidersIcon } from './icons'
 
 export function TopBar() {
@@ -34,7 +34,7 @@ export function TopBar() {
         >
           <SlidersIcon />
           <span className="chip-text">
-            {KEYS[root]} {scaleById(scale).mood.toLowerCase()} · {tempo}
+            {keyName({ root, scale: scaleById(scale) })} {scaleById(scale).mood.toLowerCase()} · {tempo}
           </span>
         </button>
         <button

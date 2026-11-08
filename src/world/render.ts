@@ -129,12 +129,13 @@ function drawPitchGuides(ctx: CanvasRenderingContext2D, world: World, o: WorldOb
 }
 
 function drawNoteLabel(ctx: CanvasRenderingContext2D, world: World, o: WorldObject, s: Settings) {
-  const n = baseNote(o, harmonyOf(s))
+  const h = harmonyOf(s)
+  const n = baseNote(o, h)
   if (n === null) return
   const x = o.x * world.width
   const y = o.y * world.height
   const r = selectionRadius(o, world.unit)
-  const label = noteName(n)
+  const label = noteName(n, h)
   ctx.font = '500 12px "Inter Variable", system-ui, sans-serif'
   const tw = ctx.measureText(label).width
   let lx = x + r + 12
@@ -424,7 +425,7 @@ export function beadPositions(world: World, o: Orbit): { x: number; y: number }[
 
 export function beadNoteName(o: Orbit, i: number, s: Settings): string {
   const h = harmonyOf(s)
-  return noteName(beadNote(baseNote(o, h)!, o.beads[i], h))
+  return noteName(beadNote(baseNote(o, h)!, o.beads[i], h), h)
 }
 
 // --------------------------------------------------------------- texture

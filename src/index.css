@@ -522,89 +522,166 @@ p {
   text-align: center;
 }
 
-.beads {
+.steps {
   display: flex;
-  gap: 4px;
-  padding: 10px 4px 0;
+  flex-direction: column;
+  padding: 4px 8px 6px;
   border-radius: 14px;
   background: rgba(42, 45, 56, 0.035);
 }
-.bead-col {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
+.step-head,
+.step-row {
+  display: grid;
+  /* Fixed octave column so the header and rows (separate grids) line up. */
+  grid-template-columns: 32px minmax(0, 1fr) 36px 88px;
   align-items: center;
+  column-gap: 6px;
 }
-.bead-track {
-  position: relative;
-  width: 100%;
-  height: 84px;
-  cursor: ns-resize;
-  touch-action: none;
-}
-.bead-track:focus-visible {
-  outline-offset: -2px;
-  border-radius: 8px;
-}
-.bead-stem {
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  width: 1px;
-  background: rgba(106, 143, 216, 0.5);
-}
-.bead-dot {
-  position: absolute;
-  left: 50%;
-  width: 12px;
-  height: 12px;
-  margin-left: -6px;
-  border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 0 3px rgba(106, 143, 216, 0.18);
-  transition: bottom 0.12s;
-}
-.bead-note {
+.step-head {
+  padding: 4px 0 2px;
   font-size: 10px;
   color: var(--ink-3);
-  padding: 4px 0 2px;
-  font-variant-numeric: tabular-nums;
 }
-.bead-mute {
+.step-head span:last-child {
+  text-align: center;
+}
+.step-row {
+  height: 38px;
+}
+.step-row + .step-row {
+  border-top: 1px solid rgba(42, 45, 56, 0.05);
+}
+.step-mute {
   display: grid;
   place-items: center;
-  /* Fills narrow columns when there are many steps, up to a comfortable target. */
-  width: 100%;
-  max-width: 36px;
-  height: 34px;
-  margin-bottom: 4px;
+  width: 32px;
+  height: 32px;
   border: 0;
   border-radius: 8px;
   background: none;
   color: var(--ink-3);
   cursor: pointer;
 }
-.bead-mute svg {
+.step-mute svg {
   width: 18px;
   height: 18px;
 }
-.bead-mute:hover {
+.step-mute:hover {
   background: rgba(42, 45, 56, 0.06);
   color: var(--ink-2);
 }
-.bead-col.muted .bead-mute {
+
+/* Note slider: a tick for every note of the scale, and the thumb snaps between them. */
+.note-track {
+  position: relative;
+  height: 32px;
+  margin: 0 7px;
+  cursor: ew-resize;
+  touch-action: none;
+}
+.note-track:focus-visible {
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+.note-line,
+.note-fill {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  height: 2px;
+  margin-top: -1px;
+  border-radius: 1px;
+}
+.note-line {
+  right: 0;
+  background: rgba(42, 45, 56, 0.1);
+}
+.note-fill {
+  background: rgba(106, 143, 216, 0.55);
+  transition: width 0.1s;
+}
+.note-tick {
+  position: absolute;
+  top: 50%;
+  width: 1.5px;
+  height: 10px;
+  margin: -5px 0 0 -0.75px;
+  border-radius: 1px;
+  background: rgba(42, 45, 56, 0.22);
+}
+.note-tick.passed {
+  background: rgba(106, 143, 216, 0.6);
+}
+.note-tick.root {
+  height: 16px;
+  margin-top: -8px;
+  background: rgba(42, 45, 56, 0.4);
+}
+.note-thumb {
+  position: absolute;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px rgba(106, 143, 216, 0.2);
+  transition: left 0.1s;
+}
+.step-note {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.octave {
+  display: flex;
+  align-items: center;
+}
+.octave button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.octave button svg {
+  width: 16px;
+  height: 16px;
+}
+.octave button:hover:not(:disabled) {
+  background: rgba(42, 45, 56, 0.06);
+}
+.octave button:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+.octave-value {
+  min-width: 24px;
+  text-align: center;
+  font-size: 11.5px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.octave-value.shifted {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.step-row.muted .step-mute {
   color: var(--ink-2);
 }
-.bead-col.muted .bead-dot {
-  background: #fff;
-  box-shadow: inset 0 0 0 1.5px var(--accent);
+.step-row.muted .note-track,
+.step-row.muted .step-note,
+.step-row.muted .octave {
+  opacity: 0.4;
 }
-.bead-col.muted .bead-stem {
-  opacity: 0.35;
-}
-.bead-col.muted .bead-note {
-  opacity: 0.45;
+.step-row.muted .step-note {
   text-decoration: line-through;
 }
 

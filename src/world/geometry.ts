@@ -26,14 +26,15 @@ export function reach(p: Pulse, unit: number): number {
   return unit * (0.12 + p.reach * 0.38)
 }
 
+/** How much further out each scale step moves a bead, as a fraction of the ring radius. */
+export const BEAD_SPREAD = 0.05
+
 /** Distance from an orbit's centre to a bead that sits `step` degrees up. */
 export function beadRadius(o: Orbit, unit: number, step: number): number {
   const r = radius(o, unit)
-  return r * (1 + step * 0.075)
+  // Low octaves pile up near the centre, so keep them clear of the hub.
+  return r * Math.max(0.35, 1 + step * BEAD_SPREAD)
 }
-
-export const BEAD_MIN = -3
-export const BEAD_MAX = 8
 
 /** Radius used for chime bounces. Drones are soft, so only their core is solid. */
 export function solidRadius(o: WorldObject, unit: number): number {
