@@ -56,7 +56,7 @@ export class Controller {
     const { sceneName, settings, presetId } = this.ui.get()
     const scene: Scene = { name: sceneName, settings, objects: this.world.objects }
     try {
-      localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 1, presetId, scene }))
+      localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 2, presetId, scene }))
     } catch {
       // Private mode or full storage: autosave is a nicety, not a requirement.
     }
@@ -282,7 +282,16 @@ function loadSaved(): { scene: Scene; presetId: string | null } | null {
     const raw = localStorage.getItem(SAVE_KEY)
     if (!raw) return null
     const data = JSON.parse(raw)
-    if (data?.v !== 1 || !Array.isArray(data.scene?.objects)) return null
+    if ((data?.v !== 1 && data?.v !== 2) || !Array.isArray(data.scene?.objects)) return null
+    // v1 stored volumes for a linear slider; move them to the same loudness on the decibel slider.
+    if (data.v === 1) {
+      const toDb = (v: unknown, ref: number) =>
+        typeof v === 'number' && v > 0
+          ? Math.round(Math.max(0.1, Math.min(1, ref + (20 * Math.log10(v / ref)) / 36)) * 100) / 100
+          : v
+      for (const o of data.scene.objects) o.volume = toDb(o.volume, 0.75)
+      if (data.scene.settings) data.scene.settings.volume = toDb(data.scene.settings.volume, 0.8)
+    }
     // Repair positions from older saves that could store null (from NaN).
     const pos = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0.5)
     for (const o of data.scene.objects) {

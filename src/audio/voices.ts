@@ -18,6 +18,19 @@ export interface Voice {
   release(): void
 }
 
+/** dB covered by the whole slider: about 9 dB per quarter, so each quarter sounds about half as loud. */
+const SLIDER_DB = 36
+
+/**
+ * Turns a 0–1 volume slider into gain. The response is even in decibels, which is
+ * how loudness is heard, rather than linear. It matches the old linear gain at
+ * `ref`, so default levels are unchanged, and fades to true silence near 0.
+ */
+export function taper(v: number, ref = 0.75): number {
+  if (v <= 0) return 0
+  return ref * 10 ** (((v - ref) * SLIDER_DB) / 20) * Math.min(1, v / 0.08)
+}
+
 const pan = (x: number) => Math.max(-0.8, Math.min(0.8, (x - 0.5) * 1.5))
 
 /**
@@ -142,7 +155,7 @@ class DroneVoice implements Voice {
       this.note = n
     }
     ramp(this.filter.frequency, this.spec.cutoff * (0.45 + d.x * 1.3), 0.4)
-    this.ch.set(d.volume * (0.4 + 0.6 * d.size) * 0.3, d.x, 1.2)
+    this.ch.set(taper(d.volume) * (0.4 + 0.6 * d.size) * 0.3, d.x, 1.2)
   }
 
   release() {
@@ -235,7 +248,7 @@ class ChimeVoice implements Voice {
     this.inst.connect(this.ch.level)
   }
   update(o: WorldObject) {
-    this.ch.set(o.volume * (0.5 + 0.5 * o.size) * 0.9, o.x, 0.05)
+    this.ch.set(taper(o.volume) * (0.5 + 0.5 * o.size) * 0.9, o.x, 0.05)
   }
   trigger(e: SoundEvent, o: WorldObject, h: Harmony) {
     if (e.type !== 'chime') return
@@ -255,7 +268,7 @@ class PulseVoice implements Voice {
     this.inst.connect(this.ch.level)
   }
   update(o: WorldObject) {
-    this.ch.set(o.volume * (0.5 + 0.5 * o.size) * 0.8, o.x, 0.05)
+    this.ch.set(taper(o.volume) * (0.5 + 0.5 * o.size) * 0.8, o.x, 0.05)
   }
   trigger(e: SoundEvent, o: WorldObject, h: Harmony) {
     if (e.type !== 'pulse') return
@@ -296,7 +309,7 @@ class OrbitVoice implements Voice {
       window.setTimeout(() => old.dispose(), 4000)
     }
     ramp(this.filter.frequency, 1400 + orbit.x * 4200, 0.3)
-    this.ch.set(orbit.volume * (0.55 + 0.45 * orbit.size) * 0.85, orbit.x, 0.05)
+    this.ch.set(taper(orbit.volume) * (0.55 + 0.45 * orbit.size) * 0.85, orbit.x, 0.05)
   }
 
   trigger(e: SoundEvent, o: WorldObject, h: Harmony) {
@@ -344,7 +357,7 @@ class TextureVoice implements Voice {
   update(o: WorldObject) {
     ramp(this.filter.frequency, 700 + Math.pow(1 - o.y, 1.6) * 11000, 0.5)
     const trim = TEXTURE_TRIM[(o as Texture).sound]
-    this.ch.set(o.volume * (0.3 + 0.7 * o.size) * 0.75 * trim, o.x, 1.5)
+    this.ch.set(taper(o.volume) * (0.3 + 0.7 * o.size) * 0.75 * trim, o.x, 1.5)
   }
 
   release() {

@@ -25,7 +25,7 @@ export function makeObject(kind: Kind, x: number, y: number): WorldObject {
         evolve: 0.2,
       }
     case 'texture':
-      return { ...base, kind, size: 0.6, volume: 0.6, sound: 'rain', drift: 0.15 }
+      return { ...base, kind, size: 0.6, volume: 0.69, sound: 'rain', drift: 0.15 }
   }
 }
 
