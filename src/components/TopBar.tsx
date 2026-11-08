@@ -29,6 +29,8 @@ export function TopBar() {
           className={`chip-button ${panel === 'settings' ? 'on' : ''}`}
           onClick={() => toggle('settings')}
           aria-expanded={panel === 'settings'}
+          aria-label="Sound settings"
+          title="Mood, key, tempo and space"
         >
           <SlidersIcon />
           <span className="chip-text">
@@ -39,6 +41,7 @@ export function TopBar() {
           className={`chip-button ${panel === 'scenes' ? 'on' : ''}`}
           onClick={() => toggle('scenes')}
           aria-expanded={panel === 'scenes'}
+          aria-label="Scenes"
         >
           <ScenesIcon />
           <span className="chip-text">Scenes</span>

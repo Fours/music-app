@@ -36,7 +36,30 @@ export class Controller {
   private toastTimer = 0
 
   constructor() {
-    this.loadPreset(PRESETS[0].id)
+    const saved = loadSaved()
+    if (saved) this.loadScene(saved.scene, saved.presetId)
+    else this.loadPreset(PRESETS[0].id)
+    // Autosave whenever the scene changes, so a reload picks up where you left off.
+    let last = -1
+    let timer = 0
+    this.ui.subscribe(() => {
+      const { version, settings } = this.ui.get()
+      const key = version * 1000 + Math.round(settings.volume * 100)
+      if (key === last) return
+      last = key
+      window.clearTimeout(timer)
+      timer = window.setTimeout(() => this.save(), 600)
+    })
+  }
+
+  private save() {
+    const { sceneName, settings, presetId } = this.ui.get()
+    const scene: Scene = { name: sceneName, settings, objects: this.world.objects }
+    try {
+      localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 1, presetId, scene }))
+    } catch {
+      // Private mode or full storage: autosave is a nicety, not a requirement.
+    }
   }
 
   get settings(): Settings {
@@ -206,6 +229,7 @@ export class Controller {
   setSettings(patch: Partial<Settings>) {
     this.ui.set((s) => ({ settings: { ...s.settings, ...patch } }))
     engine.applySettings(this.settings)
+    if (Object.keys(patch).some((k) => k !== 'volume')) this.edited()
   }
 
   // --------------------------------------------------------- recording
@@ -248,6 +272,20 @@ export class Controller {
     window.clearTimeout(this.toastTimer)
     this.ui.set({ toast: { id: Date.now(), text } })
     this.toastTimer = window.setTimeout(() => this.ui.set({ toast: null }), 3800)
+  }
+}
+
+const SAVE_KEY = 'drift:scene'
+
+function loadSaved(): { scene: Scene; presetId: string | null } | null {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY)
+    if (!raw) return null
+    const data = JSON.parse(raw)
+    if (data?.v !== 1 || !Array.isArray(data.scene?.objects)) return null
+    return { scene: data.scene, presetId: data.presetId ?? null }
+  } catch {
+    return null
   }
 }
 

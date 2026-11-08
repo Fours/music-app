@@ -1,32 +1,40 @@
-# React + TypeScript + Vite
+# Drift
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Ambient music you shape by hand. Drift is a generative canvas: you place glowing objects on an open sky, and they play off each other to make slow, evolving music that's always in tune.
 
-Currently, two official plugins are available:
+## Objects
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+| Object      | What it does                                                                                                                                                                                      |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Drone**   | A held, breathing tone. Height picks the note (root, third or fifth of the key). Further right sounds brighter.                                                                                  |
+| **Chime**   | A bead that drifts around and rings when it hits the edges or other objects. You can flick it to throw it.                                                                                       |
+| **Pulse**   | Breathes out ripples. Each ripple plays a note, and ripples ring any chimes they pass.                                                                                                           |
+| **Orbit**   | An ostinato. Beads around a ring sound as they pass the marker. Drag a bead outward to raise its note. Loop, Bounce and Wander set the order. Bigger rings play slower, so orbits drift in and out of phase. |
+| **Texture** | Rain, wind, waves or embers. It tints the sky and sounds brighter higher up.                                                                                                                      |
 
-## React Compiler
+Each object's panel has a few controls. The **Sound** panel sets the mood (scale), key, tempo, reverb space and volume. **Scenes** loads one of six starting points. **Record** captures what you hear and downloads it as a WAV file. Your scene is saved in the browser automatically.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+**Canvas controls**
 
-## Expanding the Oxlint configuration
+- Drag objects to move them.
+- To resize, drag the handle on the selection ring, pinch, or use the scroll wheel.
+- Delete or Backspace removes the selected object, Space plays or pauses, and Esc closes panels.
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+## Development
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
+npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+- `npm run build`: typecheck and production build.
+- `npm run lint`: oxlint.
+- `node scripts/render-samples.mjs`: regenerates the bundled audio in `public/samples/`.
+
+## How it works
+
+- **Audio** (`src/audio/`): Tone.js. Every object gets its own voice, which feeds a shared reverb, a tempo-synced delay, and a compressor and limiter on the master. Recording uses `Tone.Recorder`, and the result is re-encoded to WAV in the browser.
+- **Simulation** (`src/world/sim.ts`): runs on Tone's transport, so it advances on the audio clock in steady 25 ms ticks. That keeps timing exact and keeps the music playing in a background tab. Every note is stamped with its exact audio time. The canvas uses those timestamps to light objects up at the moment they sound.
+- **Rendering** (`src/world/render.ts`): drawn in code on a 2D canvas. Drones and textures use multiply blending for a soft, watercolour look.
+- **Samples** (`scripts/render-samples.mjs`): the rain, wind, waves and embers loops and the felt-piano notes are all synthesised by a script, so there are no third-party recordings to license. The loops crossfade at the seam so they repeat without a click.
+- **Music theory** (`src/music/theory.ts`): each mood is a scale. Pitch comes from an object's height, snapped to that scale. Drones are limited to chord tones, so held notes never clash.
