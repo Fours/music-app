@@ -22,7 +22,7 @@ export function makeObject(kind: Kind, x: number, y: number): WorldObject {
         beads: [0, 2, 4, 1, 3, 5],
         direction: 'forward',
         length: 0.4,
-        evolve: 0.2,
+        evolve: 0,
       }
     case 'texture':
       return { ...base, kind, size: 0.6, volume: 0.69, sound: 'rain', drift: 0.15 }
