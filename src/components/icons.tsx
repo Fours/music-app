@@ -98,7 +98,6 @@ export function KindIcon({ kind, size = 36 }: { kind: Kind; size?: number }) {
           <path d="M5 31 Q 12 24 17 22" stroke={c} strokeOpacity="0.45" strokeWidth="2.2" strokeLinecap="round" fill="none" />
           <circle cx="22" cy="19" r="9" stroke={c} strokeOpacity="0.45" fill="none" />
           <circle cx="22" cy="19" r="4.6" fill={c} />
-          <circle cx="20.6" cy="17.6" r="1.4" fill="#fff" fillOpacity="0.85" />
         </>
       )}
       {kind === 'pulse' && (

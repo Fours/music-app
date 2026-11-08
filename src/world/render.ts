@@ -1,6 +1,6 @@
 import { noteName } from '../music/theory'
 import { beadRadius, HANDLE_ANGLE, radius, selectionRadius } from './geometry'
-import { INK, KIND_COLORS, TEXTURE_COLORS, hueShift, rgba, shade } from './palette'
+import { INK, KIND_COLORS, TEXTURE_COLORS, rgba } from './palette'
 import { baseNote, beadNote, harmonyOf, pitchesFor } from './pitch'
 import { beadAngle, type World } from './sim'
 import type { Chime, Drone, Orbit, Pulse, Settings, Texture, WorldObject } from './types'
@@ -185,7 +185,7 @@ function drawDrone(ctx: CanvasRenderingContext2D, world: World, o: Drone, view: 
   const base = radius(o, world.unit)
   const breath = 1 + 0.05 * Math.sin(view.t * 0.55 + s * TAU)
   const r = base * breath
-  const color = hueShift(KIND_COLORS.drone, (0.5 - o.y) * 70 + (o.timbre === 'reed' ? 25 : o.timbre === 'glass' ? -20 : 0))
+  const color = KIND_COLORS.drone
   const bump = 1 - since(view.now, rt.flash, 1.2)
   const a = 0.32 + 0.5 * o.volume + bump * 0.15
 
@@ -260,12 +260,7 @@ function drawChime(ctx: CanvasRenderingContext2D, world: World, o: Chime, view: 
   circle(ctx, x, y, r * 3)
   ctx.fill()
 
-  const body = ctx.createRadialGradient(x - r * 0.35, y - r * 0.4, r * 0.1, x, y, r)
-  const tint = hueShift(color, o.sound === 'glass' ? -150 : o.sound === 'piano' ? -12 : 0)
-  body.addColorStop(0, '#fffaf4')
-  body.addColorStop(0.4, tint)
-  body.addColorStop(1, shade(tint, 0.78))
-  ctx.fillStyle = body
+  ctx.fillStyle = color
   circle(ctx, x, y, r * (1 + glow * 0.18))
   ctx.fill()
   ctx.globalCompositeOperation = 'multiply'
@@ -311,9 +306,6 @@ function drawPulse(ctx: CanvasRenderingContext2D, world: World, o: Pulse, view: 
 
   ctx.fillStyle = color
   circle(ctx, x, y, r * (0.62 + bump * 0.2))
-  ctx.fill()
-  ctx.fillStyle = 'rgba(255,255,255,0.8)'
-  circle(ctx, x, y, r * 0.22)
   ctx.fill()
   ctx.globalCompositeOperation = 'multiply'
 }
@@ -394,11 +386,8 @@ function drawOrbit(ctx: CanvasRenderingContext2D, world: World, o: Orbit, view: 
       circle(ctx, p.px, p.py, beadR * 6)
       ctx.fill()
     }
-    ctx.fillStyle = lit > 0.05 ? hueShift(color, -12) : rgba(color, 0.85)
+    ctx.fillStyle = color
     circle(ctx, p.px, p.py, beadR * (1 + lit * 0.6))
-    ctx.fill()
-    ctx.fillStyle = 'rgba(255,255,255,0.75)'
-    circle(ctx, p.px - beadR * 0.3, p.py - beadR * 0.3, beadR * 0.35)
     ctx.fill()
   })
 

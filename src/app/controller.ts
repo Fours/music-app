@@ -283,6 +283,12 @@ function loadSaved(): { scene: Scene; presetId: string | null } | null {
     if (!raw) return null
     const data = JSON.parse(raw)
     if (data?.v !== 1 || !Array.isArray(data.scene?.objects)) return null
+    // Repair positions from older saves that could store null (from NaN).
+    const pos = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0.5)
+    for (const o of data.scene.objects) {
+      o.x = pos(o.x)
+      o.y = pos(o.y)
+    }
     return { scene: data.scene, presetId: data.presetId ?? null }
   } catch {
     return null

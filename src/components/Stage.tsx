@@ -30,8 +30,12 @@ export function Stage() {
       dpr = Math.min(2, window.devicePixelRatio || 1)
       canvas.width = Math.round(rect.width * dpr)
       canvas.height = Math.round(rect.height * dpr)
-      app.world.width = rect.width
-      app.world.height = rect.height
+      // A hidden or collapsed canvas measures 0, and positions are stored as
+      // fractions of the size, so keep the last real size instead.
+      if (rect.width > 0 && rect.height > 0) {
+        app.world.width = rect.width
+        app.world.height = rect.height
+      }
     }
     // Keep chimes bouncing above the tray rather than hiding behind it.
     const measureTray = () => {
