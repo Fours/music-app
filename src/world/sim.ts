@@ -1,0 +1,305 @@
+import { BEAD_MAX, BEAD_MIN, radius, reach, solidRadius } from './geometry'
+import type { Orbit, Settings, SoundEvent, WorldObject } from './types'
+
+export interface Ripple {
+  born: number
+  r: number
+  max: number
+  hits: Set<string>
+}
+
+/** Transient per-object state that is never saved with a scene. */
+export interface Runtime {
+  wander: number
+  vx: number
+  vy: number
+  lastHit: number
+  /** Time of the most recent sound, for visual flashes. */
+  flash: number
+  flashAmount: number
+  // pulse
+  phase: number
+  ripples: Ripple[]
+  // orbit
+  theta: number
+  from: number
+  to: number
+  stepT: number
+  index: number
+  dir: number
+  steps: number
+  lit: number[]
+  // chime
+  trail: { x: number; y: number }[]
+}
+
+const TAU = Math.PI * 2
+const MARKER = -Math.PI / 2
+
+function newRuntime(o: WorldObject): Runtime {
+  const theta = MARKER
+  return {
+    wander: Math.random() * TAU,
+    vx: 0,
+    vy: 0,
+    lastHit: -10,
+    flash: -10,
+    flashAmount: 0,
+    phase: o.kind === 'pulse' ? 0.6 + Math.random() * 0.3 : 0,
+    ripples: [],
+    theta,
+    from: theta,
+    to: theta,
+    stepT: 0,
+    index: 0,
+    dir: 1,
+    steps: 0,
+    lit: [],
+    trail: [],
+  }
+}
+
+/** Angle that brings bead `i` of `n` under the marker. */
+function beadTarget(i: number, n: number): number {
+  return MARKER - (i * TAU) / n
+}
+
+const easeInOut = (t: number) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2)
+
+export function orbitStepDuration(o: Orbit, tempo: number): number {
+  return (0.22 + o.size * 0.85) * (60 / tempo)
+}
+
+export function pulsePeriod(rate: number, tempo: number): number {
+  return (2 + (1 - rate) * 10) * (60 / tempo)
+}
+
+const RIPPLE_LIFE = 4.5
+
+export class World {
+  objects: WorldObject[] = []
+  rt = new Map<string, Runtime>()
+  width = 1
+  height = 1
+  /** Objects currently held by a pointer; the simulation leaves them alone. */
+  held = new Set<string>()
+  /** Set when the simulation itself edits saved parameters (orbit evolve). */
+  mutated = false
+
+  get unit() {
+    return Math.min(this.width, this.height)
+  }
+
+  runtime(o: WorldObject): Runtime {
+    let r = this.rt.get(o.id)
+    if (!r) {
+      r = newRuntime(o)
+      this.rt.set(o.id, r)
+    }
+    return r
+  }
+
+  /** Advance by dt seconds. `time` is when this tick starts on the audio clock. */
+  step(dt: number, time: number, settings: Settings): SoundEvent[] {
+    const events: SoundEvent[] = []
+    const unit = this.unit
+    const pace = settings.tempo / 60
+
+    for (const id of this.rt.keys()) {
+      if (!this.objects.some((o) => o.id === id)) this.rt.delete(id)
+    }
+
+    const ring = (o: WorldObject, at: number, velocity: number) => {
+      const r = this.runtime(o)
+      if (at - r.lastHit < 0.22) return
+      r.lastHit = at
+      r.flash = at
+      r.flashAmount = velocity
+      events.push({ type: 'chime', id: o.id, time: at, velocity })
+    }
+
+    for (const o of this.objects) {
+      const r = this.runtime(o)
+      const held = this.held.has(o.id)
+
+      switch (o.kind) {
+        case 'drone':
+        case 'texture': {
+          if (held || o.drift <= 0) break
+          r.wander += (Math.random() - 0.5) * dt * 1.2
+          // Steer back toward the middle near the edges.
+          const cx = 0.5 - o.x
+          const cy = 0.5 - o.y
+          const edge = Math.max(Math.abs(cx), Math.abs(cy))
+          if (edge > 0.36) {
+            const toward = Math.atan2(cy * this.height, cx * this.width)
+            let d = toward - r.wander
+            d = Math.atan2(Math.sin(d), Math.cos(d))
+            r.wander += d * dt * 0.8
+          }
+          const speed = o.drift * unit * 0.014
+          o.x += (Math.cos(r.wander) * speed * dt) / this.width
+          o.y += (Math.sin(r.wander) * speed * dt) / this.height
+          o.x = Math.min(0.96, Math.max(0.04, o.x))
+          o.y = Math.min(0.96, Math.max(0.04, o.y))
+          break
+        }
+
+        case 'chime': {
+          if (held) {
+            r.trail.length = 0
+            break
+          }
+          const speed = unit * (0.015 + o.speed * 0.15)
+          let px = o.x * this.width + Math.cos(o.heading) * speed * dt
+          let py = o.y * this.height + Math.sin(o.heading) * speed * dt
+          const rad = radius(o, unit)
+          let hx = Math.cos(o.heading)
+          let hy = Math.sin(o.heading)
+          let bounced = false
+          if (px < rad || px > this.width - rad) {
+            hx = px < rad ? Math.abs(hx) : -Math.abs(hx)
+            px = Math.min(this.width - rad, Math.max(rad, px))
+            bounced = true
+          }
+          if (py < rad || py > this.height - rad) {
+            hy = py < rad ? Math.abs(hy) : -Math.abs(hy)
+            py = Math.min(this.height - rad, Math.max(rad, py))
+            bounced = true
+          }
+          if (bounced) ring(o, time + dt, 0.45 + o.speed * 0.3)
+
+          for (const b of this.objects) {
+            if (b === o || b.kind === 'texture') continue
+            const bx = b.x * this.width
+            const by = b.y * this.height
+            const dx = px - bx
+            const dy = py - by
+            const dist = Math.hypot(dx, dy)
+            const min = rad + solidRadius(b, unit)
+            if (dist >= min || dist === 0) continue
+            const nx = dx / dist
+            const ny = dy / dist
+            const into = hx * nx + hy * ny
+            if (into < 0) {
+              hx -= 2 * into * nx
+              hy -= 2 * into * ny
+              ring(o, time + dt, 0.55 + Math.min(0.4, -into * 0.4))
+              if (b.kind === 'chime') {
+                b.heading = Math.atan2(-ny, -nx) + (Math.random() - 0.5) * 0.4
+                ring(b, time + dt, 0.5)
+              } else {
+                const br = this.runtime(b)
+                br.flash = time + dt
+                br.flashAmount = 0.35
+              }
+            }
+            px = bx + nx * min
+            py = by + ny * min
+          }
+          o.heading = Math.atan2(hy, hx)
+          o.x = px / this.width
+          o.y = py / this.height
+          r.trail.push({ x: o.x, y: o.y })
+          if (r.trail.length > 28) r.trail.shift()
+          break
+        }
+
+        case 'pulse': {
+          const period = pulsePeriod(o.rate, settings.tempo)
+          r.phase += dt / period
+          if (r.phase >= 1) {
+            r.phase -= 1
+            const at = time + dt - r.phase * period
+            r.flash = at
+            r.flashAmount = 1
+            r.ripples.push({ born: at, r: 0, max: reach(o, unit), hits: new Set() })
+            events.push({ type: 'pulse', id: o.id, time: at })
+          }
+          const px = o.x * this.width
+          const py = o.y * this.height
+          for (const rp of r.ripples) {
+            const age = time + dt - rp.born
+            const prev = rp.r
+            rp.r = Math.max(0, (age / RIPPLE_LIFE) * rp.max * pace)
+            // Ripples set off chimes as the wavefront passes them.
+            for (const c of this.objects) {
+              if (c.kind !== 'chime' || rp.hits.has(c.id) || this.held.has(c.id)) continue
+              const d = Math.hypot(c.x * this.width - px, c.y * this.height - py)
+              if (d > prev && d <= rp.r && rp.r <= rp.max) {
+                rp.hits.add(c.id)
+                ring(c, time + dt, 0.4 * (1 - rp.r / rp.max) + 0.2)
+                const away = Math.atan2(c.y * this.height - py, c.x * this.width - px)
+                let delta = away - c.heading
+                delta = Math.atan2(Math.sin(delta), Math.cos(delta))
+                c.heading += delta * 0.35
+              }
+            }
+          }
+          r.ripples = r.ripples.filter((rp) => rp.r < rp.max)
+          break
+        }
+
+        case 'orbit': {
+          const n = Math.max(1, o.beads.length)
+          if (r.lit.length !== n) {
+            r.lit = Array.from({ length: n }, (_, i) => r.lit[i] ?? -10)
+            r.index = Math.min(r.index, n - 1)
+            r.from = r.to = r.theta = beadTarget(r.index, n) + Math.round((r.theta - beadTarget(r.index, n)) / TAU) * TAU
+          }
+          const dur = orbitStepDuration(o, settings.tempo)
+          r.stepT += dt
+          while (r.stepT >= dur) {
+            r.stepT -= dur
+            const at = time + dt - r.stepT
+            r.theta = r.to
+            r.lit[r.index] = at
+            r.flash = at
+            r.flashAmount = 0.6
+            events.push({ type: 'orbit', id: o.id, time: at, bead: r.index })
+            r.steps++
+            if (r.steps % n === 0 && o.evolve > 0 && Math.random() < o.evolve * 0.7) {
+              const b = Math.floor(Math.random() * n)
+              const shift = (Math.random() < 0.5 ? -1 : 1) * (Math.random() < 0.7 ? 1 : 2)
+              o.beads[b] = Math.min(BEAD_MAX, Math.max(BEAD_MIN, o.beads[b] + shift))
+              this.mutated = true
+            }
+            // Choose the next bead and where the ring has to turn to reach it.
+            let next: number
+            if (o.mode === 'loop') {
+              next = (r.index + 1) % n
+              r.from = r.theta
+              r.to = r.theta - TAU / n
+            } else if (o.mode === 'bounce') {
+              if (n === 1) next = 0
+              else {
+                if (r.index + r.dir >= n || r.index + r.dir < 0) r.dir *= -1
+                next = r.index + r.dir
+              }
+              r.from = r.theta
+              r.to = r.theta - (r.dir * TAU) / n
+              if (n === 1) r.to = r.theta - TAU
+            } else {
+              next = n === 1 ? 0 : (r.index + 1 + Math.floor(Math.random() * (n - 1))) % n
+              const target = beadTarget(next, n)
+              let delta = target - r.theta
+              delta = Math.atan2(Math.sin(delta), Math.cos(delta))
+              r.from = r.theta
+              r.to = r.theta + delta
+            }
+            r.index = next
+          }
+          const t = r.stepT / dur
+          const k = o.mode === 'wander' ? easeInOut(t) : t
+          r.theta = r.from + (r.to - r.from) * k
+          break
+        }
+      }
+    }
+    return events
+  }
+}
+
+export function beadAngle(rt: Runtime, i: number, n: number): number {
+  return rt.theta + (i * TAU) / n
+}
