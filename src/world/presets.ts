@@ -44,7 +44,6 @@ export const PRESETS: Preset[] = [
         obj('orbit', 0.5, 0.55, {
           size: 0.62,
           sound: 'musicbox',
-          mode: 'wander',
           beads: [0, 2, 4, 6, 3, 5],
           length: 0.55,
           evolve: 0.25,
@@ -73,7 +72,6 @@ export const PRESETS: Preset[] = [
         obj('orbit', 0.2, 0.62, {
           size: 0.3,
           sound: 'pluck',
-          mode: 'bounce',
           beads: [0, 3, 5, 7],
           length: 0.3,
           volume: 0.65,
@@ -113,7 +111,6 @@ export const PRESETS: Preset[] = [
         obj('orbit', 0.55, 0.4, {
           size: 0.55,
           sound: 'marimba',
-          mode: 'loop',
           beads: [0, 2, 4, 2, 5, 4, 2, 1],
           length: 0.35,
           evolve: 0.3,
@@ -136,7 +133,6 @@ export const PRESETS: Preset[] = [
         obj('orbit', 0.3, 0.42, {
           size: 0.45,
           sound: 'musicbox',
-          mode: 'loop',
           beads: [0, 2, 4, 3, 5],
           length: 0.5,
           volume: 0.68,
@@ -144,7 +140,6 @@ export const PRESETS: Preset[] = [
         obj('orbit', 0.7, 0.38, {
           size: 0.52,
           sound: 'pluck',
-          mode: 'wander',
           beads: [0, -1, 2, 4, 1, 3],
           length: 0.4,
           evolve: 0.4,

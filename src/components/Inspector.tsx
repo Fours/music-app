@@ -8,7 +8,7 @@ import { KIND_COLORS, TEXTURE_COLORS } from '../world/palette'
 import { baseNote, beadNote, harmonyOf } from '../world/pitch'
 import type { Orbit, WorldObject } from '../world/types'
 import { Segmented, Slider } from './controls'
-import { CloseIcon, CopyIcon, MinusIcon, PlusIcon, ShuffleIcon, TrashIcon } from './icons'
+import { CloseIcon, CopyIcon, MinusIcon, MutedIcon, PlusIcon, ShuffleIcon, SpeakerIcon, TrashIcon } from './icons'
 
 const pctFmt = (v: number) => `${Math.round(v * 100)}%`
 
@@ -147,7 +147,10 @@ function OrbitControls({ o }: { o: Orbit }) {
   const h = harmonyOf(settings)
   const base = baseNote(o, h)!
 
-  const setBeads = (beads: number[]) => set({ beads })
+  const muted = o.beads.map((_, i) => o.muted?.[i] ?? false)
+  // Keep the mute flags lined up with the steps whenever steps are added or removed.
+  const setBeads = (beads: number[]) => set({ beads, muted: beads.map((_, i) => muted[i] ?? false) })
+  const toggleMute = (i: number) => set({ muted: muted.map((m, j) => (j === i ? !m : m)) })
   const shuffle = () =>
     setBeads(o.beads.map(() => Math.floor(Math.random() * 7) - (Math.random() < 0.2 ? 2 : 0)))
 
@@ -161,16 +164,6 @@ function OrbitControls({ o }: { o: Orbit }) {
           { value: 'pluck', label: 'Pluck' },
           { value: 'musicbox', label: 'Music box' },
           { value: 'marimba', label: 'Marimba' },
-        ]}
-      />
-      <Segmented
-        label="Order"
-        value={o.mode}
-        onChange={(mode) => set({ mode })}
-        options={[
-          { value: 'loop', label: 'Loop' },
-          { value: 'bounce', label: 'Bounce' },
-          { value: 'wander', label: 'Wander' },
         ]}
       />
       <div className="field">
@@ -205,6 +198,9 @@ function OrbitControls({ o }: { o: Orbit }) {
               key={i}
               value={step}
               note={noteName(beadNote(base, step, h))}
+              index={i}
+              muted={muted[i]}
+              onToggleMute={() => toggleMute(i)}
               onChange={(v) => {
                 const next = [...o.beads]
                 next[i] = v
@@ -215,10 +211,19 @@ function OrbitControls({ o }: { o: Orbit }) {
         </div>
       </div>
       <Slider label="Note length" value={o.length} onChange={(length) => set({ length })} hint={['Short', 'Ringing']} format={pctFmt} />
+      <Segmented
+        label="Direction"
+        value={o.direction ?? 'forward'}
+        onChange={(direction) => set({ direction })}
+        options={[
+          { value: 'forward', label: 'Forward' },
+          { value: 'backward', label: 'Backward' },
+        ]}
+      />
       <Slider label="Evolve" value={o.evolve} onChange={(evolve) => set({ evolve })} hint={['Fixed', 'Restless']} format={pctFmt} />
       <Slider label="Volume" value={o.volume} onChange={(volume) => set({ volume })} format={pctFmt} />
       <Slider label="Size" value={o.size} onChange={(size) => set({ size })} hint={['Small & quick', 'Big & slow']} format={pctFmt} />
-      <p className="tip">Drag a bead on the canvas outward to raise its note, inward to lower it.</p>
+      <p className="tip">Drag a bead on the canvas outward to raise its note, inward to lower it. Tap the speaker under a step to mute it.</p>
     </>
   )
 }
@@ -226,7 +231,21 @@ function OrbitControls({ o }: { o: Orbit }) {
 const RANGE = BEAD_MAX - BEAD_MIN
 
 /** One step of the pattern: drag up or down to change its note. */
-function BeadColumn({ value, note, onChange }: { value: number; note: string; onChange: (v: number) => void }) {
+function BeadColumn({
+  value,
+  note,
+  index,
+  muted,
+  onChange,
+  onToggleMute,
+}: {
+  value: number
+  note: string
+  index: number
+  muted: boolean
+  onChange: (v: number) => void
+  onToggleMute: () => void
+}) {
   const ref = useRef<HTMLDivElement>(null)
   const setFrom = (clientY: number) => {
     const r = ref.current!.getBoundingClientRect()
@@ -236,13 +255,13 @@ function BeadColumn({ value, note, onChange }: { value: number; note: string; on
   }
   const pos = (value - BEAD_MIN) / RANGE
   return (
-    <div className="bead-col">
+    <div className={muted ? 'bead-col muted' : 'bead-col'}>
       <div
         ref={ref}
         className="bead-track"
         role="slider"
         tabIndex={0}
-        aria-label="Step note"
+        aria-label={`Step ${index + 1} note`}
         aria-valuemin={BEAD_MIN}
         aria-valuemax={BEAD_MAX}
         aria-valuenow={value}
@@ -263,6 +282,15 @@ function BeadColumn({ value, note, onChange }: { value: number; note: string; on
         <span className="bead-dot" style={{ bottom: `calc(${pos * 100}% - 6px)` }} />
       </div>
       <span className="bead-note">{note}</span>
+      <button
+        className="bead-mute"
+        aria-label={`Mute step ${index + 1}`}
+        aria-pressed={muted}
+        title={muted ? 'Unmute step' : 'Mute step'}
+        onClick={onToggleMute}
+      >
+        {muted ? <MutedIcon /> : <SpeakerIcon />}
+      </button>
     </div>
   )
 }

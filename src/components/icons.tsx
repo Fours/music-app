@@ -72,6 +72,18 @@ export const PlusIcon = (p: P) => (
     <path d="M12 6v12M6 12h12" />
   </svg>
 )
+export const SpeakerIcon = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M4.5 9.5h3l4.5-4v13l-4.5-4h-3z" />
+    <path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" />
+  </svg>
+)
+export const MutedIcon = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M4.5 9.5h3l4.5-4v13l-4.5-4h-3z" />
+    <path d="M16 9.5l5 5M21 9.5l-5 5" />
+  </svg>
+)
 
 /** Small drawings of each object, matching how they look on the canvas. */
 export function KindIcon({ kind, size = 36 }: { kind: Kind; size?: number }) {

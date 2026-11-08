@@ -371,6 +371,20 @@ function drawOrbit(ctx: CanvasRenderingContext2D, world: World, o: Orbit, view: 
 
   const beadR = Math.max(3.5, world.unit * 0.0075)
   pts.forEach((p, i) => {
+    if (o.muted?.[i]) {
+      // Muted steps: a hollow bead on a faint spoke.
+      ctx.strokeStyle = rgba(color, 0.15)
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      ctx.moveTo(x + Math.cos(p.a) * r, y + Math.sin(p.a) * r)
+      ctx.lineTo(p.px, p.py)
+      ctx.stroke()
+      ctx.strokeStyle = rgba(color, 0.7)
+      ctx.lineWidth = 1.25
+      circle(ctx, p.px, p.py, beadR - 0.6)
+      ctx.stroke()
+      return
+    }
     const lit = 1 - since(view.now, rt.lit[i] ?? -10, 0.6)
     ctx.strokeStyle = rgba(color, 0.35)
     ctx.lineWidth = 1

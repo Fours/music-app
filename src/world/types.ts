@@ -6,7 +6,6 @@ export type DroneTimbre = 'warm' | 'glass' | 'reed' | 'choir'
 export type ChimeSound = 'bell' | 'piano' | 'glass'
 export type PulseSound = 'mallet' | 'soft' | 'piano'
 export type OrbitSound = 'pluck' | 'musicbox' | 'marimba'
-export type OrbitMode = 'loop' | 'bounce' | 'wander'
 export type TextureSound = 'rain' | 'wind' | 'waves' | 'embers'
 
 interface Base {
@@ -40,12 +39,17 @@ export interface Pulse extends Base {
   reach: number
 }
 
+export type OrbitDirection = 'forward' | 'backward'
+
 export interface Orbit extends Base {
   kind: 'orbit'
   sound: OrbitSound
-  mode: OrbitMode
   /** One entry per bead: scale steps above (or below) the orbit's base note. */
   beads: number[]
+  /** Parallel to `beads`: a muted step still turns the ring but makes no sound. Missing in older saves. */
+  muted?: boolean[]
+  /** Forward plays the pattern in order with the ring turning clockwise. Missing in older saves. */
+  direction?: OrbitDirection
   length: number
   evolve: number
 }

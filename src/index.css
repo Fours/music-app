@@ -568,8 +568,44 @@ p {
 .bead-note {
   font-size: 10px;
   color: var(--ink-3);
-  padding: 4px 0 6px;
+  padding: 4px 0 2px;
   font-variant-numeric: tabular-nums;
+}
+.bead-mute {
+  display: grid;
+  place-items: center;
+  /* Fills narrow columns when there are many steps, up to a comfortable target. */
+  width: 100%;
+  max-width: 36px;
+  height: 34px;
+  margin-bottom: 4px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+.bead-mute svg {
+  width: 18px;
+  height: 18px;
+}
+.bead-mute:hover {
+  background: rgba(42, 45, 56, 0.06);
+  color: var(--ink-2);
+}
+.bead-col.muted .bead-mute {
+  color: var(--ink-2);
+}
+.bead-col.muted .bead-dot {
+  background: #fff;
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+.bead-col.muted .bead-stem {
+  opacity: 0.35;
+}
+.bead-col.muted .bead-note {
+  opacity: 0.45;
+  text-decoration: line-through;
 }
 
 /* ------------------------------------------------------- settings, scenes */

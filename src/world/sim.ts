@@ -26,7 +26,6 @@ export interface Runtime {
   to: number
   stepT: number
   index: number
-  dir: number
   steps: number
   lit: number[]
   // chime
@@ -52,7 +51,6 @@ function newRuntime(o: WorldObject): Runtime {
     to: theta,
     stepT: 0,
     index: 0,
-    dir: 1,
     steps: 0,
     lit: [],
     trail: [],
@@ -61,10 +59,9 @@ function newRuntime(o: WorldObject): Runtime {
 
 /** Angle that brings bead `i` of `n` under the marker. */
 function beadTarget(i: number, n: number): number {
-  return MARKER - (i * TAU) / n
+  return MARKER + (i * TAU) / n
 }
 
-const easeInOut = (t: number) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2)
 
 export function orbitStepDuration(o: Orbit, tempo: number): number {
   return (0.22 + o.size * 0.85) * (60 / tempo)
@@ -256,10 +253,13 @@ export class World {
             r.stepT -= dur
             const at = time + dt - r.stepT
             r.theta = r.to
-            r.lit[r.index] = at
-            r.flash = at
-            r.flashAmount = 0.6
-            events.push({ type: 'orbit', id: o.id, time: at, bead: r.index })
+            // A muted step keeps its place in the loop but stays silent.
+            if (!o.muted?.[r.index]) {
+              r.lit[r.index] = at
+              r.flash = at
+              r.flashAmount = 0.6
+              events.push({ type: 'orbit', id: o.id, time: at, bead: r.index })
+            }
             r.steps++
             if (r.steps % n === 0 && o.evolve > 0 && Math.random() < o.evolve * 0.7) {
               const b = Math.floor(Math.random() * n)
@@ -267,34 +267,14 @@ export class World {
               o.beads[b] = Math.min(BEAD_MAX, Math.max(BEAD_MIN, o.beads[b] + shift))
               this.mutated = true
             }
-            // Choose the next bead and where the ring has to turn to reach it.
-            let next: number
-            if (o.mode === 'loop') {
-              next = (r.index + 1) % n
-              r.from = r.theta
-              r.to = r.theta - TAU / n
-            } else if (o.mode === 'bounce') {
-              if (n === 1) next = 0
-              else {
-                if (r.index + r.dir >= n || r.index + r.dir < 0) r.dir *= -1
-                next = r.index + r.dir
-              }
-              r.from = r.theta
-              r.to = r.theta - (r.dir * TAU) / n
-              if (n === 1) r.to = r.theta - TAU
-            } else {
-              next = n === 1 ? 0 : (r.index + 1 + Math.floor(Math.random() * (n - 1))) % n
-              const target = beadTarget(next, n)
-              let delta = target - r.theta
-              delta = Math.atan2(Math.sin(delta), Math.cos(delta))
-              r.from = r.theta
-              r.to = r.theta + delta
-            }
-            r.index = next
+            // Turn one step to bring the next bead to the marker: clockwise
+            // through the pattern going forward, counterclockwise going backward.
+            const dir = o.direction === 'backward' ? -1 : 1
+            r.from = r.theta
+            r.to = r.theta + (dir * TAU) / n
+            r.index = (r.index + dir + n) % n
           }
-          const t = r.stepT / dur
-          const k = o.mode === 'wander' ? easeInOut(t) : t
-          r.theta = r.from + (r.to - r.from) * k
+          r.theta = r.from + (r.to - r.from) * (r.stepT / dur)
           break
         }
       }
@@ -303,6 +283,7 @@ export class World {
   }
 }
 
+/** Beads are laid out counterclockwise in pattern order, so playing forward turns the ring clockwise. */
 export function beadAngle(rt: Runtime, i: number, n: number): number {
-  return rt.theta + (i * TAU) / n
+  return rt.theta - (i * TAU) / n
 }

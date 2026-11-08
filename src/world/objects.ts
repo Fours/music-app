@@ -19,8 +19,8 @@ export function makeObject(kind: Kind, x: number, y: number): WorldObject {
         kind,
         size: 0.5,
         sound: 'pluck',
-        mode: 'loop',
         beads: [0, 2, 4, 1, 3, 5],
+        direction: 'forward',
         length: 0.4,
         evolve: 0.2,
       }

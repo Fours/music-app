@@ -9,7 +9,7 @@ Ambient music you shape by hand. Drift is a generative canvas: you place glowing
 | **Drone**   | A held, breathing tone. Height picks the note (root, third or fifth of the key). Further right sounds brighter.                                                                                  |
 | **Chime**   | A bead that drifts around and rings when it hits the edges or other objects. You can flick it to throw it.                                                                                       |
 | **Pulse**   | Breathes out ripples. Each ripple plays a note, and ripples ring any chimes they pass.                                                                                                           |
-| **Orbit**   | An ostinato. Beads around a ring sound as they pass the marker. Drag a bead outward to raise its note. Loop, Bounce and Wander set the order. Bigger rings play slower, so orbits drift in and out of phase. |
+| **Orbit**   | An ostinato. Beads around a ring sound as they pass the marker. Drag a bead outward to raise its note, or mute a step from its panel. Bigger rings play slower, so orbits drift in and out of phase. |
 | **Texture** | Rain, wind, waves or embers. It tints the sky and sounds brighter higher up.                                                                                                                      |
 
 Each object's panel has a few controls. The **Sound** panel sets the mood (scale), key, tempo, reverb space and volume. **Scenes** loads one of six starting points. **Record** captures what you hear and downloads it as a WAV file. Your scene is saved in the browser automatically.
