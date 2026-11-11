@@ -1,5 +1,6 @@
 import { useRef } from 'react'
 import { app } from '../app/controller'
+import { attackTime } from '../audio/voices'
 import { useStore } from '../app/store'
 import { noteName } from '../music/theory'
 import { KIND_LABELS } from '../world/objects'
@@ -10,6 +11,16 @@ import { Segmented, Slider } from './controls'
 import { CloseIcon, CopyIcon, MinusIcon, MutedIcon, PlusIcon, ShuffleIcon, SpeakerIcon, TrashIcon } from './icons'
 
 const pctFmt = (v: number) => `${Math.round(v * 100)}%`
+
+const attackFmt = (v: number) => {
+  const t = attackTime(v)
+  return t < 1 ? `${Math.round(t * 1000)} ms` : `${t.toFixed(1)} s`
+}
+
+/** How slowly each note swells in, so struck sounds can blend in rather than ping. */
+function AttackSlider({ value, onChange }: { value: number | undefined; onChange: (attack: number) => void }) {
+  return <Slider label="Attack" value={value ?? 0} onChange={onChange} hint={['Sharp', 'Swelling']} format={attackFmt} />
+}
 
 /** Panel for the selected object: a few big, friendly controls. */
 export function Inspector() {
@@ -80,6 +91,7 @@ export function Inspector() {
               ]}
             />
             <Slider label="Volume" value={o.volume} onChange={(volume) => set({ volume })} format={pctFmt} />
+            <AttackSlider value={o.attack} onChange={(attack) => set({ attack })} />
             <Slider label="Speed" value={o.speed} onChange={(speed) => set({ speed })} hint={['Drifting', 'Darting']} format={pctFmt} />
             <Slider label="Size" value={o.size} onChange={(size) => set({ size })} format={pctFmt} />
             <p className="tip">Flick it to send it flying. Higher on the canvas rings higher notes.</p>
@@ -99,6 +111,7 @@ export function Inspector() {
               ]}
             />
             <Slider label="Volume" value={o.volume} onChange={(volume) => set({ volume })} format={pctFmt} />
+            <AttackSlider value={o.attack} onChange={(attack) => set({ attack })} />
             <Slider label="Rate" value={o.rate} onChange={(rate) => set({ rate })} hint={['Seldom', 'Often']} format={pctFmt} />
             <Slider label="Reach" value={o.reach} onChange={(reach) => set({ reach })} hint={['Close', 'Far']} format={pctFmt} />
             <p className="tip">Its ripples ring any chimes they pass through.</p>
@@ -232,6 +245,7 @@ function OrbitControls({ o }: { o: Orbit }) {
           })}
         </div>
       </div>
+      <AttackSlider value={o.attack} onChange={(attack) => set({ attack })} />
       <Slider label="Note length" value={o.length} onChange={(length) => set({ length })} hint={['Short', 'Ringing']} format={pctFmt} />
       <Segmented
         label="Direction"

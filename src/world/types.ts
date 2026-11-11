@@ -30,6 +30,8 @@ export interface Chime extends Base {
   speed: number
   /** Direction of travel in radians. */
   heading: number
+  /** 0–1: how slowly each note swells in, from a sharp strike to a slow fade-in. Missing in older saves. */
+  attack?: number
 }
 
 export interface Pulse extends Base {
@@ -37,6 +39,8 @@ export interface Pulse extends Base {
   sound: PulseSound
   rate: number
   reach: number
+  /** 0–1: how slowly each note swells in, from a sharp strike to a slow fade-in. Missing in older saves. */
+  attack?: number
 }
 
 export type OrbitDirection = 'forward' | 'backward'
@@ -51,6 +55,8 @@ export interface Orbit extends Base {
   /** Forward plays the pattern in order with the ring turning clockwise. Missing in older saves. */
   direction?: OrbitDirection
   length: number
+  /** 0–1: how slowly each note swells in, from a sharp strike to a slow fade-in. Missing in older saves. */
+  attack?: number
   evolve: number
 }
 

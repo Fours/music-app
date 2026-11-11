@@ -10,9 +10,9 @@ export function makeObject(kind: Kind, x: number, y: number): WorldObject {
     case 'drone':
       return { ...base, kind, size: 0.6, timbre: 'warm', drift: 0.3 }
     case 'chime':
-      return { ...base, kind, size: 0.5, sound: 'bell', speed: 0.35, heading: Math.random() * Math.PI * 2 }
+      return { ...base, kind, size: 0.5, sound: 'bell', speed: 0.35, heading: Math.random() * Math.PI * 2, attack: 0 }
     case 'pulse':
-      return { ...base, kind, size: 0.5, sound: 'mallet', rate: 0.45, reach: 0.55 }
+      return { ...base, kind, size: 0.5, sound: 'mallet', rate: 0.45, reach: 0.55, attack: 0 }
     case 'orbit':
       return {
         ...base,
@@ -22,6 +22,7 @@ export function makeObject(kind: Kind, x: number, y: number): WorldObject {
         beads: [0, 2, 4, 1, 3, 5],
         direction: 'forward',
         length: 0.4,
+        attack: 0,
         evolve: 0,
       }
     case 'texture':

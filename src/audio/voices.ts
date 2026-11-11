@@ -167,6 +167,21 @@ class DroneVoice implements Voice {
 
 type Struck = Tone.PolySynth | Tone.Sampler
 
+/** Attack slider (0–1) → seconds. Squared so the low end keeps fine control. */
+export const attackTime = (a = 0) => a * a * 2
+
+/** Each instrument's own attack, which the slider only ever lengthens, and whether it's an FM bell. */
+const STRUCK_ATTACK = new WeakMap<Struck, { base: number; fm: boolean }>()
+
+function setAttack(inst: Struck, a: number) {
+  const { base, fm } = STRUCK_ATTACK.get(inst) ?? { base: 0, fm: false }
+  const attack = Math.max(base, attackTime(a))
+  if (inst instanceof Tone.Sampler) inst.attack = attack
+  // An FM bell's brightness has its own envelope; swell it too, or the strike still clicks.
+  else if (fm) (inst as unknown as Tone.PolySynth<Tone.FMSynth>).set({ envelope: { attack }, modulationEnvelope: { attack } })
+  else inst.set({ envelope: { attack } })
+}
+
 function piano(buses: Buses): Tone.Sampler {
   const b = buses.buffers
   return new Tone.Sampler({
@@ -176,7 +191,7 @@ function piano(buses: Buses): Tone.Sampler {
 }
 
 function bell(decay: number, harmonicity: number, index: number): Tone.PolySynth {
-  return new Tone.PolySynth(Tone.FMSynth, {
+  const inst = new Tone.PolySynth(Tone.FMSynth, {
     harmonicity,
     modulationIndex: index,
     oscillator: { type: 'sine' },
@@ -184,9 +199,11 @@ function bell(decay: number, harmonicity: number, index: number): Tone.PolySynth
     envelope: { attack: 0.002, decay, sustain: 0, release: decay },
     modulationEnvelope: { attack: 0.002, decay: decay * 0.3, sustain: 0, release: decay * 0.3 },
   })
+  STRUCK_ATTACK.set(inst, { base: 0.002, fm: true })
+  return inst
 }
 
-function makeStruck(sound: string, buses: Buses, length = 0.5): Struck {
+function makeStruck(sound: string, buses: Buses, attack: number, length = 0.5): Struck {
   const decay = 0.25 + length * 2.2
   let inst: Struck
   switch (sound) {
@@ -218,6 +235,7 @@ function makeStruck(sound: string, buses: Buses, length = 0.5): Struck {
         oscillator: { type: 'triangle' },
         envelope: { attack: 0.004, decay, sustain: 0, release: decay },
       })
+      STRUCK_ATTACK.set(inst, { base: 0.004, fm: false })
       inst.volume.value = -6
       break
     default: // soft
@@ -225,13 +243,17 @@ function makeStruck(sound: string, buses: Buses, length = 0.5): Struck {
         oscillator: { type: 'sine' },
         envelope: { attack: 0.04, decay: 2.8, sustain: 0, release: 2.4 },
       })
+      STRUCK_ATTACK.set(inst, { base: 0.04, fm: false })
       inst.volume.value = -6
   }
   if (inst instanceof Tone.PolySynth) inst.maxPolyphony = 10
+  setAttack(inst, attack)
   return inst
 }
 
-function strike(inst: Struck, midi: number, time: number, velocity: number, dur = 1.5) {
+function strike(inst: Struck, midi: number, time: number, velocity: number, dur: number, attack: number) {
+  // Hold the note at least until its swell peaks, or the release cuts it off part-way up.
+  dur = Math.max(dur, attackTime(attack) + 0.1)
   try {
     inst.triggerAttackRelease(Tone.Frequency(midi, 'midi').toFrequency(), dur, time, velocity)
   } catch {
@@ -239,20 +261,30 @@ function strike(inst: Struck, midi: number, time: number, velocity: number, dur 
   }
 }
 
+/** Applies a changed Attack slider to a live instrument; returns the value now in effect. */
+function syncAttack(inst: Struck, next: number | undefined, current: number): number {
+  const a = next ?? 0
+  if (a !== current) setAttack(inst, a)
+  return a
+}
+
 class ChimeVoice implements Voice {
   private ch: Channel
   private inst: Struck
+  private attack: number
   constructor(o: Chime, buses: Buses) {
     this.ch = new Channel(buses, 0.55, 0.18)
-    this.inst = this.ch.own(makeStruck(o.sound, buses))
+    this.attack = o.attack ?? 0
+    this.inst = this.ch.own(makeStruck(o.sound, buses, this.attack))
     this.inst.connect(this.ch.level)
   }
   update(o: WorldObject) {
+    this.attack = syncAttack(this.inst, (o as Chime).attack, this.attack)
     this.ch.set(taper(o.volume) * (0.5 + 0.5 * o.size) * 0.9, o.x, 0.05)
   }
   trigger(e: SoundEvent, o: WorldObject, h: Harmony) {
     if (e.type !== 'chime') return
-    strike(this.inst, baseNote(o, h)!, e.time, 0.35 + 0.6 * e.velocity, 2)
+    strike(this.inst, baseNote(o, h)!, e.time, 0.35 + 0.6 * e.velocity, 2, this.attack)
   }
   release() {
     this.ch.release(4)
@@ -262,17 +294,20 @@ class ChimeVoice implements Voice {
 class PulseVoice implements Voice {
   private ch: Channel
   private inst: Struck
+  private attack: number
   constructor(o: Pulse, buses: Buses) {
     this.ch = new Channel(buses, 0.6, 0.12)
-    this.inst = this.ch.own(makeStruck(o.sound, buses))
+    this.attack = o.attack ?? 0
+    this.inst = this.ch.own(makeStruck(o.sound, buses, this.attack))
     this.inst.connect(this.ch.level)
   }
   update(o: WorldObject) {
+    this.attack = syncAttack(this.inst, (o as Pulse).attack, this.attack)
     this.ch.set(taper(o.volume) * (0.5 + 0.5 * o.size) * 0.8, o.x, 0.05)
   }
   trigger(e: SoundEvent, o: WorldObject, h: Harmony) {
     if (e.type !== 'pulse') return
-    strike(this.inst, baseNote(o, h)!, e.time, 0.7, 1.8)
+    strike(this.inst, baseNote(o, h)!, e.time, 0.7, 1.8, this.attack)
   }
   release() {
     this.ch.release(4)
@@ -284,6 +319,7 @@ class OrbitVoice implements Voice {
   private inst: Struck
   private filter: Tone.Filter
   private length: number
+  private attack: number
   private sound: string
   private buses: Buses
 
@@ -291,10 +327,11 @@ class OrbitVoice implements Voice {
     this.buses = buses
     this.sound = o.sound
     this.length = o.length
+    this.attack = o.attack ?? 0
     this.ch = new Channel(buses, 0.45, 0.32)
     this.filter = this.ch.own(new Tone.Filter({ type: 'lowpass', frequency: 3200, rolloff: -12 }))
     this.filter.connect(this.ch.level)
-    this.inst = this.ch.own(makeStruck(o.sound, buses, o.length))
+    this.inst = this.ch.own(makeStruck(o.sound, buses, this.attack, o.length))
     this.inst.connect(this.filter)
   }
 
@@ -304,10 +341,11 @@ class OrbitVoice implements Voice {
       // Note length lives in the envelope, so swap in a freshly built instrument.
       this.length = orbit.length
       const old = this.inst
-      this.inst = this.ch.own(makeStruck(this.sound, this.buses, orbit.length))
+      this.inst = this.ch.own(makeStruck(this.sound, this.buses, this.attack, orbit.length))
       this.inst.connect(this.filter)
       window.setTimeout(() => old.dispose(), 4000)
     }
+    this.attack = syncAttack(this.inst, orbit.attack, this.attack)
     ramp(this.filter.frequency, 1400 + orbit.x * 4200, 0.3)
     this.ch.set(taper(orbit.volume) * (0.55 + 0.45 * orbit.size) * 0.85, orbit.x, 0.05)
   }
@@ -319,7 +357,7 @@ class OrbitVoice implements Voice {
     const step = orbit.beads[e.bead] ?? 0
     const octave = orbit.sound === 'musicbox' ? 12 : 0
     const dur = 0.15 + orbit.length * 1.2
-    strike(this.inst, beadNote(base, step, h) + octave, e.time, 0.55 + Math.random() * 0.25, dur)
+    strike(this.inst, beadNote(base, step, h) + octave, e.time, 0.55 + Math.random() * 0.25, dur, this.attack)
   }
 
   release() {
