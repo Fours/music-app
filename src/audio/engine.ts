@@ -1,6 +1,7 @@
 import * as Tone from 'tone'
 import type { Harmony } from '../music/theory'
 import type { Settings, SoundEvent, WorldObject } from '../world/types'
+import { Tape } from './tape'
 import { createVoice, taper, voiceSignature, withClock, type Buses, type Voice } from './voices'
 
 /** Master gain at full volume; the compressor and limiter keep peaks in check. */
@@ -23,6 +24,7 @@ export class AudioEngine {
   private master!: Tone.Gain
   private reverbReturn!: Tone.Gain
   private delay!: Tone.FeedbackDelay
+  private tape!: Tape
   private slots = new Map<string, Slot>()
   // Created in init(), after the playback context is installed.
   recorder!: Tone.Recorder
@@ -45,14 +47,19 @@ export class AudioEngine {
     limiter.connect(this.recorder)
     limiter.connect(this.meter)
 
-    const dry = new Tone.Gain(1).connect(this.master)
+    // Everything passes through the tape stage before the master volume, so
+    // Volume doesn't change how hard the tape saturates.
+    this.tape = new Tape()
+    this.tape.output.connect(this.master)
+    const mix = this.tape.input
+    const dry = new Tone.Gain(1).connect(mix)
     const reverb = new Tone.Reverb({ decay: 9, preDelay: 0.04, wet: 1 })
-    this.reverbReturn = new Tone.Gain(0.8).connect(this.master)
+    this.reverbReturn = new Tone.Gain(0.8).connect(mix)
     reverb.connect(this.reverbReturn)
     this.delay = new Tone.FeedbackDelay({ delayTime: 0.75, feedback: 0.42, wet: 1 })
     const delayTone = new Tone.Filter({ type: 'lowpass', frequency: 2600 })
     this.delay.chain(delayTone, reverb)
-    delayTone.connect(this.master)
+    delayTone.connect(mix)
 
     let done = 0
     const buffers: Record<string, Tone.ToneAudioBuffer> = {}
@@ -75,6 +82,7 @@ export class AudioEngine {
     this.master.gain.rampTo(taper(s.volume, 0.8) * MAKEUP, 0.3)
     this.reverbReturn.gain.rampTo(0.15 + s.space * 1.1, 0.5)
     this.delay.feedback.rampTo(0.2 + s.space * 0.4, 0.5)
+    this.tape.set(s)
     // A dotted-eighth echo at the current tempo.
     this.delay.delayTime.rampTo((60 / s.tempo) * 0.75, 1)
   }

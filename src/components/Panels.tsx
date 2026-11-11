@@ -75,6 +75,27 @@ export function SettingsPanel() {
           hint={['Close', 'Cavernous']}
         />
         <Slider
+          label="Tape wow"
+          value={s.wow ?? 0}
+          onChange={(wow) => app.setSettings({ wow })}
+          format={(v) => `${Math.round(v * 100)}%`}
+          hint={['Steady', 'Seasick']}
+        />
+        <Slider
+          label="Tape flutter"
+          value={s.flutter ?? 0}
+          onChange={(flutter) => app.setSettings({ flutter })}
+          format={(v) => `${Math.round(v * 100)}%`}
+          hint={['Clean', 'Warbly']}
+        />
+        <Slider
+          label="Tape wear"
+          value={s.wear ?? 0}
+          onChange={(wear) => app.setSettings({ wear })}
+          format={(v) => `${Math.round(v * 100)}%`}
+          hint={['New', 'Worn']}
+        />
+        <Slider
           label="Volume"
           value={s.volume}
           onChange={(volume) => app.setSettings({ volume })}

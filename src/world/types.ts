@@ -73,6 +73,10 @@ export interface Settings {
   scale: ScaleId
   tempo: number
   space: number
+  /** Tape effects on the whole mix, 0–1. Missing in older saves. */
+  wow?: number
+  flutter?: number
+  wear?: number
   volume: number
 }
 
