@@ -13,6 +13,7 @@ export default function App() {
   const panel = useStore(app.ui, (s) => s.panel)
   const selectedId = useStore(app.ui, (s) => s.selectedId)
   const toast = useStore(app.ui, (s) => s.toast)
+  const dragging = useStore(app.ui, (s) => s.dragging)
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -34,7 +35,7 @@ export default function App() {
 
   const running = phase === 'running'
   return (
-    <div className={`app ${running ? 'is-running' : ''}`}>
+    <div className={`app ${running ? 'is-running' : ''} ${dragging ? 'is-dragging' : ''}`}>
       <Stage />
       <div className="grain" aria-hidden />
       {running && (

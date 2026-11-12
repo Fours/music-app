@@ -6,6 +6,9 @@ import { clampBead, harmonyOf } from '../world/pitch'
 import { beadPositions, draw } from '../world/render'
 import type { Orbit, WorldObject } from '../world/types'
 
+/** How far (CSS px) a touch can wander and still count as a tap. */
+const TAP_SLOP = 8
+
 type Gesture =
   | { mode: 'move'; id: string; dx: number; dy: number; samples: { x: number; y: number; t: number }[] }
   | { mode: 'resize'; id: string; startDist: number; startRadius: number }
@@ -79,6 +82,11 @@ export function Stage() {
     const pointers = new Map<number, { x: number; y: number }>()
     let gesture: Gesture = { mode: 'none' }
     let changed = false
+    // Tap or drag: a touch only opens the inspector if it lifts without moving,
+    // since on a phone the inspector covers the lower half of the stage.
+    let touch = false
+    let start = { x: 0, y: 0 }
+    let dragged = false
 
     const local = (e: PointerEvent | WheelEvent) => {
       const r = canvas.getBoundingClientRect()
@@ -108,6 +116,14 @@ export function Stage() {
       return best?.o
     }
 
+    /** A touch has turned into a drag: close another object's inspector, hide this one's. */
+    const startDrag = (id: string) => {
+      dragged = true
+      if (!touch) return
+      if (app.ui.get().selectedId !== id) app.select(null)
+      app.ui.set({ dragging: true })
+    }
+
     const down = (e: PointerEvent) => {
       if (app.ui.get().phase === 'welcome') return
       canvas.setPointerCapture(e.pointerId)
@@ -125,10 +141,14 @@ export function Stage() {
             startDist: Math.hypot(a.x - b.x, a.y - b.y),
             startRadius: radius(o, world.unit),
           }
+          if (!dragged) startDrag(o.id)
         }
         return
       }
       if (pointers.size > 1) return
+      touch = e.pointerType !== 'mouse'
+      start = p
+      dragged = false
 
       const sel = app.find(app.ui.get().selectedId)
       if (sel) {
@@ -168,7 +188,7 @@ export function Stage() {
         gesture = { mode: 'none' }
         return
       }
-      app.select(o.id)
+      if (!touch) app.select(o.id)
       const c = center(o)
       gesture = { mode: 'move', id: o.id, dx: c.x - p.x, dy: c.y - p.y, samples: [{ ...p, t: e.timeStamp }] }
       hold(o.id)
@@ -184,6 +204,7 @@ export function Stage() {
       const o = 'id' in gesture ? app.find(gesture.id) : undefined
       if (!o) return
       changed = true
+      if (!dragged && Math.hypot(p.x - start.x, p.y - start.y) > TAP_SLOP) startDrag(o.id)
       switch (gesture.mode) {
         case 'move': {
           o.x = Math.min(1, Math.max(0, (p.x + gesture.dx) / world.width))
@@ -236,6 +257,8 @@ export function Stage() {
         }
       }
       if (pointers.size > 0) return
+      if (app.ui.get().dragging) app.ui.set({ dragging: false })
+      if (gesture.mode === 'move' && touch && !dragged) app.select(gesture.id)
       if (gesture.mode === 'move') {
         const o = app.find(gesture.id)
         // Flick: a chime leaves in the direction it was thrown.

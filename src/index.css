@@ -307,6 +307,12 @@ p {
   animation: sheet-in 0.32s cubic-bezier(0.2, 0.9, 0.3, 1) both;
   z-index: 10;
 }
+/* Out of the way while a finger drags something it might cover; slides back in on release. */
+.is-dragging .sheet {
+  animation: none;
+  opacity: 0;
+  pointer-events: none;
+}
 .sheet-head {
   display: flex;
   align-items: flex-start;

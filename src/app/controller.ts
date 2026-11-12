@@ -22,6 +22,7 @@ export class Controller {
     loadProgress: 0,
     playing: false,
     selectedId: null,
+    dragging: false,
     sceneName: '',
     presetId: null,
     settings: PRESETS[0].build().settings,

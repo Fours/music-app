@@ -9,6 +9,8 @@ export interface UIState {
   loadProgress: number
   playing: boolean
   selectedId: string | null
+  /** A touch drag is under way; the inspector steps aside so it doesn't cover the object. */
+  dragging: boolean
   sceneName: string
   presetId: string | null
   settings: Settings
