@@ -59,14 +59,17 @@ export function Stage() {
       app.frame(dt)
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
       const s = app.ui.get()
-      draw(ctx, app.world, {
+      const view = {
         now: app.now(),
         t: ms / 1000,
         selectedId: s.selectedId,
         heldId: heldRef.current,
         settings: s.settings,
         level: s.playing ? engine.level() : 0,
-      })
+      }
+      draw(ctx, app.world, view)
+      // Clips show the music without the editing UI.
+      app.clip?.frame(ms, (c) => draw(c, app.world, { ...view, selectedId: null, heldId: null }))
       raf = requestAnimationFrame(loop)
     }
     raf = requestAnimationFrame(loop)

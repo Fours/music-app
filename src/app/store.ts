@@ -3,6 +3,13 @@ import type { Settings } from '../world/types'
 
 export type Phase = 'welcome' | 'loading' | 'running'
 export type Panel = 'none' | 'settings' | 'scenes'
+export type CaptureKind = 'audio' | 'video'
+
+export interface Capture {
+  kind: CaptureKind
+  since: number
+  saving: boolean
+}
 
 export interface UIState {
   phase: Phase
@@ -16,8 +23,8 @@ export interface UIState {
   settings: Settings
   /** Bumped whenever object parameters change, so panels re-read them. */
   version: number
-  recordingSince: number | null
-  saving: boolean
+  /** An audio recording or video clip in progress (or being saved). */
+  capture: Capture | null
   panel: Panel
   toast: { id: number; text: string } | null
   objectCount: number

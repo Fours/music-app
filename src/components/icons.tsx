@@ -22,6 +22,13 @@ export const PlayIcon = (p: P) => (
     <path d="M8 5.5v13l10.5-6.5z" fill="currentColor" stroke="none" />
   </svg>
 )
+/** A landscape frame with a play mark, for recording video clips. */
+export const ClipIcon = (p: P) => (
+  <svg {...base(p)}>
+    <rect x="3" y="5.5" width="18" height="13" rx="3" />
+    <path d="M10.5 9.5v5l4.5-2.5z" fill="currentColor" />
+  </svg>
+)
 export const PauseIcon = (p: P) => (
   <svg {...base(p)}>
     <rect x="6.5" y="5.5" width="3.5" height="13" rx="1" fill="currentColor" stroke="none" />

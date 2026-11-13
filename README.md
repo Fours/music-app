@@ -12,7 +12,7 @@ Ambient music you shape by hand. Drift is a generative canvas: you place glowing
 | **Orbit**   | An ostinato. Beads around a ring sound as they pass the marker. Drag a bead outward to raise its note, or mute a step from its panel. Bigger rings play slower, so orbits drift in and out of phase. |
 | **Texture** | Rain, wind, waves or embers. It tints the sky and sounds brighter higher up.                                                                                                                      |
 
-Each object's panel has a few controls. The **Sound** panel sets the mood (scale), key, tempo, reverb space and volume. **Scenes** loads one of six starting points. **Record** captures what you hear and downloads it as a WAV file. Your scene is saved in the browser automatically.
+Each object's panel has a few controls. The **Sound** panel sets the mood (scale), key, tempo, reverb space and volume. **Scenes** loads one of six starting points. **Record** captures what you hear and downloads it as a WAV file. **Clip** records a video of the sky with the music, ready to share: MP4 in Safari and Chrome, WebM in Firefox. It leaves out selection and editing marks, adds a small wordmark, and stops itself at five minutes. Your scene is saved in the browser automatically.
 
 **Canvas controls**
 
@@ -34,7 +34,7 @@ npm run dev
 
 ## How it works
 
-- **Audio** (`src/audio/`): Tone.js. Every object gets its own voice, which feeds a shared reverb, a tempo-synced delay, and a compressor and limiter on the master. Recording uses `Tone.Recorder`, and the result is re-encoded to WAV in the browser.
+- **Audio** (`src/audio/`): Tone.js. Every object gets its own voice, which feeds a shared reverb, a tempo-synced delay, and a compressor and limiter on the master. Recording uses `Tone.Recorder`, and the result is re-encoded to WAV in the browser. Clips (`src/app/clip.ts`) redraw the scene onto their own canvas at up to 1920 × 1080 and 30 fps, and the browser's `MediaRecorder` encodes it with the master output.
 - **Simulation** (`src/world/sim.ts`): runs on Tone's transport, so it advances on the audio clock in steady 25 ms ticks. That keeps timing exact and keeps the music playing in a background tab. Every note is stamped with its exact audio time. The canvas uses those timestamps to light objects up at the moment they sound.
 - **Rendering** (`src/world/render.ts`): drawn in code on a 2D canvas. Drones and textures use multiply blending for a soft, watercolour look.
 - **Textures** (`scripts/prepare-textures.mjs`): rain, wind, waves and embers are field recordings. The script cuts a steady stretch of each, moving each cut to a quiet moment, and crossfades the end into the start so the loop has no seam. It then matches their loudness, limits peaks and encodes stereo AAC. Sources and licences are in [CREDITS.md](CREDITS.md). Fire has two layers on different loop lengths, a steady roar and crackle, so the repeat is hard to hear. The script writes `src/audio/texture-loops.ts`, which tells the player where each loop sits in its file.

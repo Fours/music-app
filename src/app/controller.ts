@@ -6,9 +6,11 @@ import { harmonyOf } from '../world/pitch'
 import { PRESETS } from '../world/presets'
 import { World } from '../world/sim'
 import { LIMITS, type Kind, type Scene, type Settings, type WorldObject } from '../world/types'
-import { createStore, type UIState } from './store'
+import { ClipRecorder, clipType } from './clip'
+import { createStore, type CaptureKind, type UIState } from './store'
 
 const TICK = 0.025
+const MAX_CLIP_SECONDS = 300
 
 /**
  * The app's single source of truth outside React. The simulation runs on the
@@ -27,8 +29,7 @@ export class Controller {
     presetId: null,
     settings: PRESETS[0].build().settings,
     version: 0,
-    recordingSince: null,
-    saving: false,
+    capture: null,
     panel: 'none',
     toast: null,
     objectCount: 0,
@@ -249,34 +250,77 @@ export class Controller {
     return Tone.Recorder.supported
   }
 
-  async toggleRecording() {
-    const { recordingSince, phase, saving } = this.ui.get()
-    if (phase !== 'running' || saving) return
-    if (recordingSince === null) {
-      await engine.recorder.start()
-      this.ui.set({ recordingSince: Date.now() })
-      return
-    }
-    this.ui.set({ recordingSince: null, saving: true })
+  get canClip(): boolean {
+    return clipType() !== null
+  }
+
+  /** The video clip being recorded, which the draw loop paints into. */
+  clip: ClipRecorder | null = null
+  private clipTimer = 0
+
+  async toggleCapture(kind: CaptureKind) {
+    const { capture, phase } = this.ui.get()
+    if (phase !== 'running') return
+    if (!capture) return this.startCapture(kind)
+    if (capture.kind === kind && !capture.saving) return this.stopCapture()
+  }
+
+  private async startCapture(kind: CaptureKind) {
     try {
-      const blob = await engine.recorder.stop()
-      const decoded = await Tone.getContext().rawContext.decodeAudioData(await blob.arrayBuffer())
-      const wav = encodeWav(decoded as AudioBuffer)
-      const name = `drift-${slug(this.ui.get().sceneName) || 'session'}-${stamp()}.wav`
-      const a = document.createElement('a')
-      a.href = URL.createObjectURL(wav)
-      a.download = name
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      window.setTimeout(() => URL.revokeObjectURL(a.href), 10000)
-      this.toast(`Saved ${name}`)
+      if (kind === 'audio') {
+        await engine.recorder.start()
+      } else {
+        const type = clipType()
+        if (!type) return
+        const { width, height } = this.world
+        this.clip = new ClipRecorder(engine.stream.stream, width, height, type)
+        this.clip.start()
+        this.clipTimer = window.setTimeout(() => {
+          this.toast('Clips stop at 5 minutes')
+          void this.stopCapture()
+        }, MAX_CLIP_SECONDS * 1000)
+      }
+      this.ui.set({ capture: { kind, since: Date.now(), saving: false } })
     } catch (err) {
       console.error(err)
-      this.toast('Sorry, that recording could not be saved')
-    } finally {
-      this.ui.set({ saving: false })
+      this.clip = null
+      this.toast(kind === 'audio' ? 'Sorry, recording could not start' : 'Sorry, this browser could not record a clip')
     }
+  }
+
+  private async stopCapture() {
+    const capture = this.ui.get().capture
+    if (!capture || capture.saving) return
+    this.ui.set({ capture: { ...capture, saving: true } })
+    const base = `drift-${slug(this.ui.get().sceneName) || 'session'}-${stamp()}`
+    try {
+      if (capture.kind === 'audio') {
+        const blob = await engine.recorder.stop()
+        const decoded = await Tone.getContext().rawContext.decodeAudioData(await blob.arrayBuffer())
+        this.download(encodeWav(decoded as AudioBuffer), `${base}.wav`)
+      } else {
+        window.clearTimeout(this.clipTimer)
+        const clip = this.clip!
+        this.clip = null
+        this.download(await clip.stop(), `${base}.${clip.extension}`)
+      }
+    } catch (err) {
+      console.error(err)
+      this.toast(`Sorry, that ${capture.kind === 'audio' ? 'recording' : 'clip'} could not be saved`)
+    } finally {
+      this.ui.set({ capture: null })
+    }
+  }
+
+  private download(blob: Blob, name: string) {
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = name
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    window.setTimeout(() => URL.revokeObjectURL(a.href), 10000)
+    this.toast(`Saved ${name}`)
   }
 
   toast(text: string) {

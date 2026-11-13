@@ -35,6 +35,8 @@ export class AudioEngine {
   private slots = new Map<string, Slot>()
   // Created in init(), after the playback context is installed.
   recorder!: Tone.Recorder
+  /** The master output as a MediaStream, for video clips. */
+  stream!: MediaStreamAudioDestinationNode
   private meter!: Tone.Meter
 
   async init(onProgress?: (p: number) => void) {
@@ -53,6 +55,8 @@ export class AudioEngine {
     limiter.toDestination()
     limiter.connect(this.recorder)
     limiter.connect(this.meter)
+    this.stream = Tone.getContext().createMediaStreamDestination()
+    limiter.connect(this.stream)
 
     // Everything passes through the tape stage before the master volume, so
     // Volume doesn't change how hard the tape saturates.
