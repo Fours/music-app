@@ -1,6 +1,7 @@
 import * as Tone from 'tone'
 import { midiToFreq, type Harmony } from '../music/theory'
 import { baseNote, beadNote } from '../world/pitch'
+import { TEXTURE_LOOPS } from './texture-loops'
 import type { Chime, Drone, Orbit, Pulse, SoundEvent, Texture, WorldObject } from '../world/types'
 
 export interface Buses {
@@ -64,11 +65,13 @@ function ramp(param: { rampTo(v: number, t: number, start?: number): unknown }, 
  */
 class Channel {
   level = new Tone.Gain(0)
-  panner = new Tone.Panner(0)
+  panner: Tone.Panner
   sends: Tone.Gain[]
   private nodes: { dispose(): unknown }[] = []
 
-  constructor(buses: Buses, reverb: number, delay: number) {
+  /** `channels`: 2 keeps a stereo source's width through the panner, which otherwise sums it to mono. */
+  constructor(buses: Buses, reverb: number, delay: number, channels: 1 | 2 = 1) {
+    this.panner = new Tone.Panner({ pan: 0, channelCount: channels })
     this.level.connect(this.panner)
     this.panner.connect(buses.dry)
     const r = new Tone.Gain(reverb)
@@ -185,7 +188,7 @@ function setAttack(inst: Struck, a: number) {
 function piano(buses: Buses): Tone.Sampler {
   const b = buses.buffers
   return new Tone.Sampler({
-    urls: { C3: b['piano-c3'], C4: b['piano-c4'], C5: b['piano-c5'] },
+    urls: { C3: b['piano-c3.wav'], C4: b['piano-c4.wav'], C5: b['piano-c5.wav'] },
     release: 1.2,
   })
 }
@@ -367,16 +370,18 @@ class OrbitVoice implements Voice {
 
 // --------------------------------------------------------------- texture
 
-/** Evens out the loudness of the rendered loops (measured, not guessed). */
-const TEXTURE_TRIM = { rain: 1.4, wind: 1, waves: 1, embers: 1.9 }
-
+/**
+ * A field recording looped, through a lowpass that opens up higher on the
+ * canvas. Some textures have several layers on different loop lengths (fire's
+ * roar and crackle), so their repeats rarely line up. The loops are already
+ * matched in loudness by scripts/prepare-textures.mjs.
+ */
 class TextureVoice implements Voice {
   private ch: Channel
-  private player: Tone.Player
   private filter: Tone.Filter
 
   constructor(o: Texture, buses: Buses) {
-    this.ch = new Channel(buses, 0.25, 0)
+    this.ch = new Channel(buses, 0.25, 0, 2)
     const sway = this.ch.own(new Tone.Gain(1))
     sway.connect(this.ch.level)
     const lfo = this.ch.own(
@@ -385,17 +390,20 @@ class TextureVoice implements Voice {
     lfo.connect(sway.gain)
     this.filter = this.ch.own(new Tone.Filter({ type: 'lowpass', frequency: 6000, rolloff: -12 }))
     this.filter.connect(sway)
-    this.player = this.ch.own(new Tone.Player(buses.buffers[o.sound]))
-    this.player.loop = true
-    this.player.connect(this.filter)
-    const buf = buses.buffers[o.sound]
-    this.player.start(at() + 0.05, Math.random() * buf.duration)
+    for (const layer of TEXTURE_LOOPS[o.sound]) {
+      const player = this.ch.own(new Tone.Player(buses.buffers[layer.file]))
+      // Loop the window inside the file's padding, which hides the encoder's edges.
+      player.loop = true
+      player.loopStart = layer.start
+      player.loopEnd = layer.start + layer.length
+      player.connect(this.filter)
+      player.start(at() + 0.05, layer.start + Math.random() * layer.length)
+    }
   }
 
   update(o: WorldObject) {
     ramp(this.filter.frequency, 700 + Math.pow(1 - o.y, 1.6) * 11000, 0.5)
-    const trim = TEXTURE_TRIM[(o as Texture).sound]
-    this.ch.set(taper(o.volume) * (0.3 + 0.7 * o.size) * 0.75 * trim, o.x, 1.5)
+    this.ch.set(taper(o.volume) * (0.3 + 0.7 * o.size) * 0.75, o.x, 1.5)
   }
 
   release() {

@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Raw recordings for scripts/prepare-textures.mjs (large; only the processed loops are committed)
+samples-src/

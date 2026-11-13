@@ -1,10 +1,10 @@
-// Renders Drift's bundled audio: seamless ambient texture loops and a few
-// felt-piano notes. Everything is synthesized from noise and sine partials,
-// so there are no third-party recordings to license.
+// Renders Drift's felt-piano notes, synthesized from sine partials so there
+// are no third-party recordings to license. (The texture loops come from field
+// recordings instead: see scripts/prepare-textures.mjs.)
 //
 //   node scripts/render-samples.mjs
 //
-// Output: public/samples/*.wav (mono, 16-bit). The script is deterministic.
+// Output: public/samples/piano-*.wav (mono, 16-bit). The script is deterministic.
 
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -59,54 +59,6 @@ class Biquad {
   }
 }
 
-/** Paul Kellet's pink noise filter. */
-function pinkSource(rand) {
-  let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0
-  return () => {
-    const w = rand() * 2 - 1
-    b0 = 0.99886 * b0 + w * 0.0555179
-    b1 = 0.99332 * b1 + w * 0.0750759
-    b2 = 0.969 * b2 + w * 0.153852
-    b3 = 0.8665 * b3 + w * 0.3104856
-    b4 = 0.55 * b4 + w * 0.5329522
-    b5 = -0.7616 * b5 - w * 0.016898
-    const out = b0 + b1 + b2 + b3 + b4 + b5 + b6 + w * 0.5362
-    b6 = w * 0.115926
-    return out * 0.11
-  }
-}
-
-function brownSource(rand) {
-  let last = 0
-  return () => {
-    last = (last + 0.02 * (rand() * 2 - 1)) / 1.02
-    return last * 3.5
-  }
-}
-
-/** Sum of sines whose periods divide the loop length, so it loops exactly. */
-function loopLfo(seconds, cycles, rand) {
-  const parts = cycles.map((c) => ({ f: c / seconds, p: rand() * TAU }))
-  return (t) => parts.reduce((s, { f, p }) => s + Math.sin(TAU * f * t + p), 0) / parts.length
-}
-
-/**
- * Renders `seconds + fade` of audio and folds the overhang back onto the
- * start with an equal-power crossfade, giving a click-free loop.
- */
-function renderLoop(seconds, fade, fn) {
-  const n = Math.round(seconds * SR)
-  const f = Math.round(fade * SR)
-  const raw = new Float32Array(n + f)
-  fn(raw)
-  const out = raw.slice(0, n)
-  for (let i = 0; i < f; i++) {
-    const k = i / f
-    out[i] = raw[n + i] * Math.cos((k * Math.PI) / 2) + raw[i] * Math.sin((k * Math.PI) / 2)
-  }
-  return out
-}
-
 function normalize(buf, peak = 0.89) {
   let max = 0
   for (const v of buf) max = Math.max(max, Math.abs(v))
@@ -127,119 +79,6 @@ function writeWav(name, data) {
   }
   writeFileSync(join(OUT, name), b)
   console.log(`${name.padEnd(14)} ${(bytes / 1024).toFixed(0).padStart(5)} KB`)
-}
-
-// ----------------------------------------------------------------- textures
-
-function rain() {
-  const L = 10
-  return normalize(renderLoop(L, 1, (buf) => {
-    const rand = rng(11)
-    const pink = pinkSource(rand)
-    const hp = new Biquad('highpass', 500)
-    const lp = new Biquad('lowpass', 5200)
-    const swell = loopLfo(L, [1, 2, 5], rand)
-    for (let i = 0; i < buf.length; i++) {
-      const t = i / SR
-      buf[i] = lp.run(hp.run(pink())) * (0.55 + 0.12 * swell(t))
-    }
-    // Individual drops: short falling sine pings with a tiny noise click.
-    const drops = Math.round(buf.length / SR * 70)
-    for (let d = 0; d < drops; d++) {
-      const start = Math.floor(rand() * buf.length)
-      const heavy = rand() < 0.08
-      const f0 = heavy ? 900 + rand() * 900 : 2200 + rand() * 3200
-      const decay = heavy ? 0.03 : 0.006 + rand() * 0.012
-      const amp = (heavy ? 0.5 : 0.25) * Math.pow(rand(), 2.2)
-      const len = Math.floor(decay * 6 * SR)
-      let phase = 0
-      for (let j = 0; j < len && start + j < buf.length; j++) {
-        const t = j / SR
-        const env = Math.exp(-t / decay)
-        phase += (TAU * f0 * (1 - 0.25 * Math.min(1, t / (decay * 3)))) / SR
-        const click = j < 24 ? (rand() * 2 - 1) * (1 - j / 24) * 0.6 : 0
-        buf[start + j] += amp * env * (Math.sin(phase) + click)
-      }
-    }
-  }))
-}
-
-function wind() {
-  const L = 12
-  return normalize(renderLoop(L, 1.5, (buf) => {
-    const rand = rng(23)
-    const brown = brownSource(rand)
-    const pink = pinkSource(rand)
-    const bp1 = new Biquad('bandpass', 400, 2.5)
-    const bp2 = new Biquad('bandpass', 900, 4)
-    const lp = new Biquad('lowpass', 2500)
-    const sweep1 = loopLfo(L, [1, 3], rand)
-    const sweep2 = loopLfo(L, [2, 5], rand)
-    const gust = loopLfo(L, [1, 2, 3], rand)
-    for (let i = 0; i < buf.length; i++) {
-      const t = i / SR
-      if (i % 32 === 0) {
-        bp1.set(380 + 260 * sweep1(t), 2.2)
-        bp2.set(950 + 450 * sweep2(t), 5)
-      }
-      const g = 0.5 + 0.5 * gust(t)
-      const body = bp1.run(brown() + pink() * 0.6) * 1.6
-      const whistle = bp2.run(pink()) * 0.9 * g * g
-      buf[i] = lp.run(body * (0.35 + 0.65 * g) + whistle)
-    }
-  }))
-}
-
-function waves() {
-  const L = 14 // two waves per loop
-  return normalize(renderLoop(L, 1.5, (buf) => {
-    const rand = rng(37)
-    const pink = pinkSource(rand)
-    const brown = brownSource(rand)
-    const lp = new Biquad('lowpass', 600, 0.8)
-    const hp = new Biquad('highpass', 1800)
-    const foamLp = new Biquad('lowpass', 7000)
-    const waveShape = (t) => {
-      // Rises slowly, crests, then a long hiss as it draws back.
-      const p = (t % (L / 2)) / (L / 2)
-      return p < 0.35 ? Math.pow(p / 0.35, 2) : Math.exp(-(p - 0.35) * 4.2)
-    }
-    for (let i = 0; i < buf.length; i++) {
-      const t = i / SR
-      const w = waveShape(t)
-      if (i % 32 === 0) lp.set(250 + 1500 * w, 0.8)
-      const body = lp.run(pink() + brown() * 0.8) * (0.25 + 0.9 * w)
-      const foam = foamLp.run(hp.run(pink())) * Math.pow(w, 3) * 0.9
-      buf[i] = body + foam
-    }
-  }))
-}
-
-function embers() {
-  const L = 10
-  return normalize(renderLoop(L, 1, (buf) => {
-    const rand = rng(53)
-    const brown = brownSource(rand)
-    const lp = new Biquad('lowpass', 320)
-    const breath = loopLfo(L, [1, 2], rand)
-    for (let i = 0; i < buf.length; i++) {
-      buf[i] = lp.run(brown()) * (0.5 + 0.15 * breath(i / SR))
-    }
-    // Crackles: tiny bursts of band-limited noise, now and then a pop.
-    const crackleBp = new Biquad('bandpass', 2500, 1.2)
-    const crackles = Math.round(buf.length / SR * 26)
-    for (let c = 0; c < crackles; c++) {
-      const start = Math.floor(rand() * buf.length)
-      const pop = rand() < 0.1
-      const len = Math.floor((pop ? 0.012 : 0.002 + rand() * 0.004) * SR)
-      const amp = (pop ? 1.1 : 0.6) * Math.pow(rand(), 1.6)
-      crackleBp.set(pop ? 900 + rand() * 600 : 1500 + rand() * 4000, 1.2)
-      for (let j = 0; j < len * 3 && start + j < buf.length; j++) {
-        const env = j < len ? 1 : Math.exp(-(j - len) / (len * 0.4))
-        buf[start + j] += crackleBp.run((rand() * 2 - 1) * env) * amp * 3
-      }
-    }
-  }))
 }
 
 // -------------------------------------------------------------- felt piano
@@ -285,10 +124,6 @@ function feltPiano(midi) {
 // --------------------------------------------------------------------- main
 
 mkdirSync(OUT, { recursive: true })
-writeWav('rain.wav', rain())
-writeWav('wind.wav', wind())
-writeWav('waves.wav', waves())
-writeWav('embers.wav', embers())
 writeWav('piano-c3.wav', feltPiano(48))
 writeWav('piano-c4.wav', feltPiano(60))
 writeWav('piano-c5.wav', feltPiano(72))

@@ -2,12 +2,19 @@ import * as Tone from 'tone'
 import type { Harmony } from '../music/theory'
 import type { Settings, SoundEvent, WorldObject } from '../world/types'
 import { Tape } from './tape'
+import { TEXTURE_LOOPS } from './texture-loops'
 import { createVoice, taper, voiceSignature, withClock, type Buses, type Voice } from './voices'
 
 /** Master gain at full volume; the compressor and limiter keep peaks in check. */
 const MAKEUP = 2.4
 
-const SAMPLES = ['rain', 'wind', 'waves', 'embers', 'piano-c3', 'piano-c4', 'piano-c5']
+/** Files in public/samples, which are also the keys of `Buses.buffers`. */
+const SAMPLES = [
+  'piano-c3.wav',
+  'piano-c4.wav',
+  'piano-c5.wav',
+  ...Object.values(TEXTURE_LOOPS).flatMap((layers) => layers.map((l) => l.file)),
+]
 
 interface Slot {
   voice: Voice
@@ -65,10 +72,8 @@ export class AudioEngine {
     const buffers: Record<string, Tone.ToneAudioBuffer> = {}
     await Promise.all([
       reverb.ready,
-      ...SAMPLES.map(async (name) => {
-        buffers[name] = await new Tone.ToneAudioBuffer().load(
-          `${import.meta.env.BASE_URL}samples/${name}.wav`,
-        )
+      ...SAMPLES.map(async (file) => {
+        buffers[file] = await new Tone.ToneAudioBuffer().load(`${import.meta.env.BASE_URL}samples/${file}`)
         onProgress?.(++done / SAMPLES.length)
       }),
     ])
