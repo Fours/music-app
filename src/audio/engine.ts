@@ -77,7 +77,7 @@ export class AudioEngine {
     await Promise.all([
       reverb.ready,
       ...SAMPLES.map(async (file) => {
-        buffers[file] = await new Tone.ToneAudioBuffer().load(`${import.meta.env.BASE_URL}samples/${file}`)
+        buffers[file] = await loadSample(`${import.meta.env.BASE_URL}samples/${file}`)
         onProgress?.(++done / SAMPLES.length)
       }),
     ])
@@ -144,3 +144,17 @@ export class AudioEngine {
 }
 
 export const engine = new AudioEngine()
+
+/**
+ * Fetches and decodes an audio file. This replaces Tone's own loader, which
+ * rejects any response that isn't `ok`: in the iOS app, Capacitor serves audio
+ * files (.wav, .m4a) without an HTTP status, so fetch reports status 0 even
+ * though the file arrives in full.
+ */
+async function loadSample(url: string): Promise<Tone.ToneAudioBuffer> {
+  const response = await fetch(url)
+  if (!response.ok && response.status !== 0) throw new Error(`Could not load ${url} (${response.status})`)
+  const data = await response.arrayBuffer()
+  if (data.byteLength === 0) throw new Error(`Could not load ${url} (empty)`)
+  return new Tone.ToneAudioBuffer(await Tone.getContext().decodeAudioData(data))
+}

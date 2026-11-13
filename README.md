@@ -29,8 +29,18 @@ npm run dev
 
 - `npm run build`: typecheck and production build.
 - `npm run lint`: oxlint.
+- `npm run check:offline`: checks that the build in `dist/` loads nothing from the network, which the iOS app needs.
+- `npm run ios`: builds, runs the offline check, copies the build into the iOS project with `cap sync`, and opens it in Xcode.
 - `node scripts/render-samples.mjs`: regenerates the felt-piano notes in `public/samples/`.
 - `node scripts/prepare-textures.mjs`: rebuilds the texture loops from the field recordings in `samples-src/`. Needs ffmpeg. The recordings themselves aren't in git (they're large), only the loops made from them.
+
+### iOS app
+
+The iPhone and iPad app, Skyloom, wraps the same build with [Capacitor](https://capacitorjs.com). The Xcode project is in `ios/`. The plan is in [docs/ios-app-plan.md](docs/ios-app-plan.md).
+
+- Needs full Xcode, selected with `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`, plus the iOS simulator platform (Xcode → Settings → Components).
+- `npm run ios`, then pick a simulator or a connected device in Xcode and press Run. To run on your own device, choose your team under Signing & Capabilities.
+- The app's settings live in `capacitor.config.ts`. `cap sync` copies the web build into `ios/App/App/public/`, which isn't committed.
 
 ## How it works
 

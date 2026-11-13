@@ -33,7 +33,7 @@ This is a spike. Fix only what's needed to measure something. Anything bigger be
 
 | Task | Status | Commit |
 | --- | --- | --- |
-| T1. Capacitor shell | Not started |  |
+| T1. Capacitor shell | In progress: device checks left |  |
 | T2. Audio basics on a device | Not started |  |
 | T3. Background playback | Not started |  |
 | T4. Performance and clips | Not started |  |
@@ -47,9 +47,18 @@ This is a spike. Fix only what's needed to measure something. Anything bigger be
 
 **Done when:**
 
-- [ ] The app builds and launches in the iOS Simulator and on a real device.
+- [x] The app builds and launches in the iOS Simulator (iPhone 17 Pro, iOS 26.5) and a scene plays.
+- [ ] The app builds and launches on a real device.
+- [x] `npm run check:offline` passes: the build references no other hosts, and every file `index.html` links to is bundled.
 - [ ] With the device in airplane mode, every scene loads and plays.
-- [ ] `npm run build` and `npm run dev` behave as before.
+- [x] `npm run build` and `npm run dev` behave as before.
+
+**Findings:**
+
+- Capacitor serves audio files (`.wav`, `.m4a`) with a bare response that has no HTTP status, so `fetch` reports status 0. Tone.js's loader treats that as a failure, so audio wouldn't start. `loadSample()` in `src/audio/engine.ts` now fetches and decodes the samples itself and accepts status 0.
+- `MediaRecorder` and `canvas.captureStream` exist in the iOS web view (both Clip and Record show up). Whether clips record well is for T4.
+- Capacitor's console bridge prints `Error` objects as `{}`. Use Safari's Web Inspector (Develop → Simulator or the device) to see real errors.
+- The app icon and launch screen are still Capacitor's defaults. Replacing them is in milestone 2.
 
 ### T2. Audio basics on a device
 
