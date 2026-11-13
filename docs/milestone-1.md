@@ -1,6 +1,6 @@
 # Milestone 1: Spike on a real device
 
-Source: [Drift for iPhone and iPad: plan](ios-app-plan.md), Milestones → 1.
+Source: [Skyloom for iPhone and iPad: plan](ios-app-plan.md), Milestones → 1.
 
 ## Outcome
 
@@ -41,7 +41,7 @@ This is a spike. Fix only what's needed to measure something. Anything bigger be
 
 ### T1. Capacitor shell
 
-- Add `@capacitor/core`, `@capacitor/cli` and `@capacitor/ios`, and run `npx cap init` and `npx cap add ios` (app ID such as `com.kylewillett.drift`).
+- Add `@capacitor/core`, `@capacitor/cli` and `@capacitor/ios`, and run `npx cap init` and `npx cap add ios` with the display name Skyloom and the app ID `com.kylewillett.skyloom`. The ID can't change once the app is on the App Store, so it uses the final name even though the code still says Drift.
 - Add `npm run ios`: build, `cap sync`, then open Xcode.
 - Check that assets, samples and fonts load from the bundle with no network, and that the web build and dev server still work as before.
 
