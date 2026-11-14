@@ -74,6 +74,8 @@ export interface Orbit extends Base {
   muted?: boolean[]
   /** Forward plays the pattern in order with the ring turning clockwise. Missing in older saves. */
   direction?: OrbitDirection
+  /** Shifts every step off the eighth-note grid, from −1 (an eighth early) to 1 (an eighth late). Missing in older saves. */
+  offset?: number
   length: number
   /** 0–1: how slowly each note swells in, from a sharp strike to a slow fade-in. Missing in older saves. */
   attack?: number

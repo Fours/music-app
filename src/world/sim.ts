@@ -1,7 +1,7 @@
 import { radius, reach, solidRadius } from './geometry'
 import { clampBead, harmonyOf } from './pitch'
 import { OSC_PARAMS, baseOf, oscillationOf, phaseFor, sweep, type OscParam } from './oscillate'
-import type { Orbit, Settings, SoundEvent, WorldObject } from './types'
+import type { Settings, SoundEvent, WorldObject } from './types'
 
 export interface Ripple {
   born: number
@@ -28,8 +28,10 @@ export interface Runtime {
   theta: number
   from: number
   to: number
-  stepT: number
+  /** Eighth note on the grid where its first step plays; NaN until the simulation first sees it. */
+  start: number
   index: number
+  /** Steps played so far. */
   steps: number
   lit: number[]
   // chime
@@ -54,7 +56,7 @@ function newRuntime(o: WorldObject): Runtime {
     theta,
     from: theta,
     to: theta,
-    stepT: 0,
+    start: NaN,
     index: 0,
     steps: 0,
     lit: [],
@@ -68,9 +70,24 @@ function beadTarget(i: number, n: number): number {
 }
 
 
-export function orbitStepDuration(o: Orbit, tempo: number): number {
-  return (0.22 + o.size * 0.85) * (60 / tempo)
+/** Step lengths an orbit's Size snaps to, in eighth notes: a 16th, an 8th, a dotted 8th and a quarter. */
+export const ORBIT_STEPS = [0.5, 1, 1.5, 2]
+export const ORBIT_STEP_NAMES = ['16th notes', '8th notes', 'Dotted 8ths', 'Quarter notes']
+
+/**
+ * Which of ORBIT_STEPS an orbit's Size picks: the nearest to the free step
+ * length it had before steps were snapped to the grid, so saved scenes keep
+ * roughly their speed.
+ */
+export function orbitStepIndex(size: number): number {
+  const free = 0.44 + 1.7 * size
+  let best = 0
+  for (let i = 1; i < ORBIT_STEPS.length; i++) if (Math.abs(ORBIT_STEPS[i] - free) < Math.abs(ORBIT_STEPS[best] - free)) best = i
+  return best
 }
+
+/** Eighth notes per second at `tempo` (which counts quarter notes). */
+const eighthsPerSecond = (tempo: number) => tempo / 30
 
 export function pulsePeriod(rate: number, tempo: number): number {
   return (2 + (1 - rate) * 10) * (60 / tempo)
@@ -89,6 +106,12 @@ export class World {
   held = new Set<string>()
   /** Set when the simulation itself edits saved parameters (orbit evolve). */
   mutated = false
+  /**
+   * The shared beat grid: eighth notes counted since the simulation started.
+   * Accumulated rather than read off the clock, so changing the tempo keeps
+   * every orbit's place in the bar.
+   */
+  eighths = 0
 
   get unit() {
     return Math.min(this.width, this.height)
@@ -119,6 +142,9 @@ export class World {
     const events: SoundEvent[] = []
     const unit = this.unit
     const pace = settings.tempo / 60
+    const grid0 = this.eighths
+    const perSecond = eighthsPerSecond(settings.tempo)
+    this.eighths += dt * perSecond
 
     for (const id of this.rt.keys()) {
       if (!this.objects.some((o) => o.id === id)) this.rt.delete(id)
@@ -275,11 +301,22 @@ export class World {
             r.index = Math.min(r.index, n - 1)
             r.from = r.to = r.theta = beadTarget(r.index, n) + Math.round((r.theta - beadTarget(r.index, n)) / TAU) * TAU
           }
-          const dur = orbitStepDuration(o, settings.tempo)
-          r.stepT += dt
-          while (r.stepT >= dur) {
-            r.stepT -= dur
-            const at = time + dt - r.stepT
+          // A new orbit starts on the next eighth note, and every step after
+          // falls on the grid too, shifted by its offset (in eighths, ±1).
+          if (Number.isNaN(r.start)) r.start = Math.ceil(grid0)
+          const len = ORBIT_STEPS[orbitStepIndex(o.size)]
+          const origin = r.start + (o.offset ?? 0)
+          /** Steps elapsed by the end of this tick, fractional. */
+          const pos = (this.eighths - origin) / len
+          const due = Math.floor(pos) + 1
+          // Size made longer, or Offset moved later: if that leaves more than a
+          // step to wait, carry on from the next step on the grid instead.
+          if (due < r.steps - 1) r.steps = due
+          if (pos >= 0 && due > r.steps) {
+            // Usually one step. If Size or Offset just jumped it ahead, play one
+            // note and pick up from there rather than a burst of catch-up notes.
+            r.steps = due - 1
+            const at = Math.min(time + dt, Math.max(time, time + (origin + r.steps * len - grid0) / perSecond))
             r.theta = r.to
             // A muted step keeps its place in the loop but stays silent.
             if (!o.muted?.[r.index]) {
@@ -302,7 +339,9 @@ export class World {
             r.to = r.theta + (dir * TAU) / n
             r.index = (r.index + dir + n) % n
           }
-          r.theta = r.from + (r.to - r.from) * (r.stepT / dur)
+          // Turn toward the next bead over the step. Moving Offset or Size back
+          // makes the ring wait, rather than replay steps.
+          r.theta = r.from + (r.to - r.from) * Math.min(1, Math.max(0, pos - (r.steps - 1)))
           break
         }
       }

@@ -4,6 +4,7 @@ import { attackTime } from '../audio/voices'
 import { useStore } from '../app/store'
 import { noteName } from '../music/theory'
 import { KIND_LABELS } from '../world/objects'
+import { ORBIT_STEP_NAMES, orbitStepIndex } from '../world/sim'
 import { KIND_COLORS, TEXTURE_COLORS } from '../world/palette'
 import { OCTAVE_MAX, OCTAVE_MIN, baseNote, beadNote, clampBead, harmonyOf, joinBead, splitBead } from '../world/pitch'
 import type { Orbit, WorldObject } from '../world/types'
@@ -13,6 +14,15 @@ import { OscillatingSlider } from './OscillatingSlider'
 import { CloseIcon, CopyIcon, MinusIcon, MutedIcon, PlusIcon, ShuffleIcon, SpeakerIcon, TrashIcon } from './icons'
 
 const pctFmt = (v: number) => `${Math.round(v * 100)}%`
+
+/** Orbit Size: the step length it snaps to. */
+const stepFmt = (v: number) => ORBIT_STEP_NAMES[orbitStepIndex(v)]
+
+/** Orbit Offset, in eighth notes either side of the beat. */
+const offsetFmt = (v: number) => (v === 0 ? 'On the beat' : `${Math.round(Math.abs(v) * 100)}% of an 8th ${v < 0 ? 'early' : 'late'}`)
+
+/** Close to zero snaps to it, so an orbit is easy to put back on the beat. */
+const snapOffset = (v: number) => (Math.abs(v) < 0.06 ? 0 : v)
 
 const attackFmt = (v: number) => {
   const t = attackTime(v)
@@ -269,9 +279,18 @@ function OrbitControls({ o }: { o: Orbit }) {
           { value: 'backward', label: 'Backward' },
         ]}
       />
+      <Slider
+        label="Offset"
+        value={o.offset ?? 0}
+        min={-1}
+        max={1}
+        onChange={(offset) => set({ offset: snapOffset(offset) })}
+        hint={['Earlier', 'Later']}
+        format={offsetFmt}
+      />
       <Slider label="Evolve" value={o.evolve} onChange={(evolve) => set({ evolve })} hint={['Fixed', 'Restless']} format={pctFmt} />
       <VolumeField o={o} />
-      <Slider label="Size" value={o.size} onChange={(size) => set({ size })} hint={['Small & quick', 'Big & slow']} format={pctFmt} />
+      <Slider label="Size" value={o.size} onChange={(size) => set({ size })} hint={['Small & quick', 'Big & slow']} format={stepFmt} />
       <FilterField o={o} />
       <p className="tip">Drag a bead on the canvas outward to raise its note, inward to lower it.</p>
     </>
