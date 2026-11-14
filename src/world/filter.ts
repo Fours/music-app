@@ -27,7 +27,7 @@ export function resonanceDb(r: number): number {
   return r * MAX_PEAK_DB
 }
 
-export const isOpen = (f: FilterSettings) => f.cutoff >= 0.995 && f.resonance <= 0.005
+export const isOpen = (f: FilterSettings) => !f.oscillate?.on && f.cutoff >= 0.995 && f.resonance <= 0.005
 
 export function cutoffFmt(pos: number): string {
   if (pos >= 0.995) return 'Open'

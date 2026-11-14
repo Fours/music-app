@@ -1,6 +1,6 @@
 import { radius, reach, solidRadius } from './geometry'
 import { clampBead, harmonyOf } from './pitch'
-import { phaseFor, sweep } from './oscillate'
+import { OSC_PARAMS, baseOf, oscillationOf, phaseFor, sweep, type OscParam } from './oscillate'
 import type { Orbit, Settings, SoundEvent, WorldObject } from './types'
 
 export interface Ripple {
@@ -19,9 +19,8 @@ export interface Runtime {
   /** Time of the most recent sound, for visual flashes. */
   flash: number
   flashAmount: number
-  /** How far through its volume oscillation the object is, 0–1. */
-  swell: number
-  swellOn: boolean
+  /** How far through each oscillating slider's cycle the object is, 0–1. */
+  swing: Record<OscParam, { phase: number; on: boolean }>
   // pulse
   phase: number
   ripples: Ripple[]
@@ -49,8 +48,7 @@ function newRuntime(o: WorldObject): Runtime {
     lastHit: -10,
     flash: -10,
     flashAmount: 0,
-    swell: 0,
-    swellOn: false,
+    swing: { volume: { phase: 0, on: false }, cutoff: { phase: 0, on: false } },
     phase: o.kind === 'pulse' ? 0.6 + Math.random() * 0.3 : 0,
     ripples: [],
     theta,
@@ -105,10 +103,15 @@ export class World {
     return r
   }
 
-  /** The volume an object is playing at right now, with any oscillation applied. */
+  /** A slider's value right now, with any oscillation applied. */
+  live(o: WorldObject, p: OscParam): number {
+    const osc = oscillationOf(o, p)
+    return osc?.on ? sweep(osc, this.runtime(o).swing[p].phase) : baseOf(o, p)
+  }
+
+  /** The volume an object is playing at right now. */
   level(o: WorldObject): number {
-    const osc = o.oscillate
-    return osc?.on ? sweep(osc, this.runtime(o).swell) : o.volume
+    return this.live(o, 'volume')
   }
 
   /** Advance by dt seconds. `time` is when this tick starts on the audio clock. */
@@ -135,13 +138,16 @@ export class World {
       const held = this.held.has(o.id)
 
       // Phase is accumulated rather than read off the clock, so changing the
-      // cycle length mid-sweep doesn't make the volume jump.
-      const osc = o.oscillate
-      if (osc?.on) {
-        if (!r.swellOn) r.swell = phaseFor(osc, o.volume)
-        r.swellOn = true
-        r.swell = (r.swell + dt / osc.period) % 1
-      } else r.swellOn = false
+      // cycle length mid-sweep doesn't make the value jump.
+      for (const p of OSC_PARAMS) {
+        const osc = oscillationOf(o, p)
+        const swing = r.swing[p]
+        if (osc?.on) {
+          if (!swing.on) swing.phase = phaseFor(osc, baseOf(o, p))
+          swing.on = true
+          swing.phase = (swing.phase + dt / osc.period) % 1
+        } else swing.on = false
+      }
 
       switch (o.kind) {
         case 'drone':

@@ -1,4 +1,24 @@
-import type { Oscillation } from './types'
+import { OPEN_FILTER } from './filter'
+import type { Oscillation, WorldObject } from './types'
+
+/** Sliders that can oscillate. */
+export type OscParam = 'volume' | 'cutoff'
+export const OSC_PARAMS: OscParam[] = ['volume', 'cutoff']
+
+/** Where each parameter keeps its oscillation. Volume's predates the others, so it sits on the object itself. */
+export function oscillationOf(o: WorldObject, p: OscParam): Oscillation | undefined {
+  return p === 'volume' ? o.oscillate : o.filter?.oscillate
+}
+
+/** The slider's own value, used while it isn't oscillating. */
+export function baseOf(o: WorldObject, p: OscParam): number {
+  return p === 'volume' ? o.volume : (o.filter ?? OPEN_FILTER).cutoff
+}
+
+/** A patch that stores `osc` as parameter `p`'s oscillation. */
+export function withOscillation(o: WorldObject, p: OscParam, osc: Oscillation): Partial<WorldObject> {
+  return p === 'volume' ? { oscillate: osc } : { filter: { ...(o.filter ?? OPEN_FILTER), oscillate: osc } }
+}
 
 /** Shortest and longest cycle the Cycle slider offers, in seconds. */
 export const PERIOD_MIN = 2
@@ -6,9 +26,9 @@ export const PERIOD_MAX = 120
 
 const TAU = Math.PI * 2
 
-/** What switching oscillation on for the first time starts from: a dip below the current volume. */
-export function defaultOscillation(volume: number): Oscillation {
-  return { on: true, ends: [Math.max(0, round(volume - 0.3)), volume], period: 8 }
+/** What switching oscillation on for the first time starts from: a dip below the slider's current value. */
+export function defaultOscillation(value: number): Oscillation {
+  return { on: true, ends: [Math.max(0, round(value - 0.3)), value], period: 8 }
 }
 
 const round = (v: number) => Math.round(v * 100) / 100
@@ -27,11 +47,11 @@ export function sweep(osc: Oscillation, phase: number): number {
   return lo + (hi - lo) * (0.5 - 0.5 * Math.cos(phase * TAU))
 }
 
-/** The phase on the rising half of the cycle where the sweep passes `volume`, so switching on doesn't jump. */
-export function phaseFor(osc: Oscillation, volume: number): number {
+/** The phase on the rising half of the cycle where the sweep passes `value`, so switching on doesn't jump. */
+export function phaseFor(osc: Oscillation, value: number): number {
   const [lo, hi] = span(osc)
   if (hi - lo < 1e-6) return 0
-  const t = Math.min(1, Math.max(0, (volume - lo) / (hi - lo)))
+  const t = Math.min(1, Math.max(0, (value - lo) / (hi - lo)))
   return Math.acos(1 - 2 * t) / TAU
 }
 

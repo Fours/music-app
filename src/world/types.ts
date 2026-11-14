@@ -26,13 +26,15 @@ export interface FilterSettings {
   /** 0–1 slider positions; see world/filter.ts for Hz and dB. */
   cutoff: number
   resonance: number
+  /** Sweeps the cutoff back and forth on its own. */
+  oscillate?: Oscillation
 }
 
 export interface Oscillation {
   on: boolean
-  /** The two ends of the sweep on the 0–1 volume slider, in either order. */
+  /** The two ends of the sweep, as 0–1 positions on the slider, in either order. */
   ends: [number, number]
-  /** Seconds for one full cycle, quiet → loud → quiet. */
+  /** Seconds for one full cycle, low → high → low. */
   period: number
 }
 

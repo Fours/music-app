@@ -3,7 +3,7 @@ import type { Harmony } from '../music/theory'
 import type { Settings, SoundEvent, WorldObject } from '../world/types'
 import { Tape } from './tape'
 import { TEXTURE_LOOPS } from './texture-loops'
-import { createVoice, taper, voiceSignature, withClock, type Buses, type Voice } from './voices'
+import { createVoice, taper, voiceSignature, withClock, type Buses, type Live, type Voice } from './voices'
 
 /** Master gain at full volume; the compressor and limiter keep peaks in check. */
 const MAKEUP = 2.4
@@ -97,12 +97,13 @@ export class AudioEngine {
   }
 
   /** Bring voices in line with the objects on the canvas. */
-  sync(objects: WorldObject[], h: Harmony, time = Tone.now(), level: (o: WorldObject) => number = (o) => o.volume) {
+  /** `live` gives each object's slider values with any oscillation applied. */
+  sync(objects: WorldObject[], h: Harmony, time: number, live: (o: WorldObject) => Live) {
     if (!this.ready) return
-    withClock(time, () => this.syncAt(objects, h, level))
+    withClock(time, () => this.syncAt(objects, h, live))
   }
 
-  private syncAt(objects: WorldObject[], h: Harmony, level: (o: WorldObject) => number) {
+  private syncAt(objects: WorldObject[], h: Harmony, live: (o: WorldObject) => Live) {
     const seen = new Set<string>()
     for (const o of objects) {
       seen.add(o.id)
@@ -116,7 +117,7 @@ export class AudioEngine {
         slot = { voice: createVoice(o, this.buses), signature }
         this.slots.set(o.id, slot)
       }
-      slot.voice.update(o, h, level(o))
+      slot.voice.update(o, h, live(o))
     }
     for (const [id, slot] of this.slots) {
       if (!seen.has(id)) {

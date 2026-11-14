@@ -12,9 +12,16 @@ export interface Buses {
   buffers: Record<string, Tone.ToneAudioBuffer>
 }
 
+/** Slider values as they stand this tick, after any oscillation. */
+export interface Live {
+  volume: number
+  /** 0–1 position on the Cutoff slider. */
+  cutoff: number
+}
+
 export interface Voice {
-  /** Called every simulation tick with the object's current state; `volume` has any oscillation applied. */
-  update(o: WorldObject, h: Harmony, volume: number): void
+  /** Called every simulation tick with the object's current state; `live` has any oscillation applied. */
+  update(o: WorldObject, h: Harmony, live: Live): void
   trigger?(e: SoundEvent, o: WorldObject, h: Harmony): void
   /** Fade out and free nodes. */
   release(): void
@@ -100,8 +107,8 @@ class Channel {
   }
 
   /** The object's Cutoff and Resonance sliders; a short glide so dragging them doesn't zipper. */
-  shape(f: FilterSettings = OPEN_FILTER) {
-    ramp(this.filter.frequency, cutoffHz(f.cutoff), 0.08)
+  shape(f: FilterSettings = OPEN_FILTER, cutoff = f.cutoff) {
+    ramp(this.filter.frequency, cutoffHz(cutoff), 0.08)
     ramp(this.filter.Q, resonanceDb(f.resonance), 0.08)
   }
 
@@ -160,7 +167,7 @@ class DroneVoice implements Voice {
     this.shimmer.connect(this.filter).start(at())
   }
 
-  update(o: WorldObject, h: Harmony, volume: number) {
+  update(o: WorldObject, h: Harmony, live: Live) {
     const d = o as Drone
     const n = baseNote(d, h)!
     if (n !== this.note) {
@@ -171,8 +178,8 @@ class DroneVoice implements Voice {
       this.note = n
     }
     ramp(this.filter.frequency, this.spec.cutoff * (0.45 + d.x * 1.3), 0.4)
-    this.ch.set(taper(volume) * (0.4 + 0.6 * d.size) * 0.3, d.x, glide(o, 1.2))
-    this.ch.shape(o.filter)
+    this.ch.set(taper(live.volume) * (0.4 + 0.6 * d.size) * 0.3, d.x, glide(o, 1.2))
+    this.ch.shape(o.filter, live.cutoff)
   }
 
   release() {
@@ -295,10 +302,10 @@ class ChimeVoice implements Voice {
     this.inst = this.ch.own(makeStruck(o.sound, buses, this.attack))
     this.inst.connect(this.ch.level)
   }
-  update(o: WorldObject, _h: Harmony, volume: number) {
+  update(o: WorldObject, _h: Harmony, live: Live) {
     this.attack = syncAttack(this.inst, (o as Chime).attack, this.attack)
-    this.ch.set(taper(volume) * (0.5 + 0.5 * o.size) * 0.9, o.x, 0.05)
-    this.ch.shape(o.filter)
+    this.ch.set(taper(live.volume) * (0.5 + 0.5 * o.size) * 0.9, o.x, 0.05)
+    this.ch.shape(o.filter, live.cutoff)
   }
   trigger(e: SoundEvent, o: WorldObject, h: Harmony) {
     if (e.type !== 'chime') return
@@ -319,10 +326,10 @@ class PulseVoice implements Voice {
     this.inst = this.ch.own(makeStruck(o.sound, buses, this.attack))
     this.inst.connect(this.ch.level)
   }
-  update(o: WorldObject, _h: Harmony, volume: number) {
+  update(o: WorldObject, _h: Harmony, live: Live) {
     this.attack = syncAttack(this.inst, (o as Pulse).attack, this.attack)
-    this.ch.set(taper(volume) * (0.5 + 0.5 * o.size) * 0.8, o.x, 0.05)
-    this.ch.shape(o.filter)
+    this.ch.set(taper(live.volume) * (0.5 + 0.5 * o.size) * 0.8, o.x, 0.05)
+    this.ch.shape(o.filter, live.cutoff)
   }
   trigger(e: SoundEvent, o: WorldObject, h: Harmony) {
     if (e.type !== 'pulse') return
@@ -354,7 +361,7 @@ class OrbitVoice implements Voice {
     this.inst.connect(this.filter)
   }
 
-  update(o: WorldObject, _h: Harmony, volume: number) {
+  update(o: WorldObject, _h: Harmony, live: Live) {
     const orbit = o as Orbit
     if (Math.abs(orbit.length - this.length) > 0.02) {
       // Note length lives in the envelope, so swap in a freshly built instrument.
@@ -366,8 +373,8 @@ class OrbitVoice implements Voice {
     }
     this.attack = syncAttack(this.inst, orbit.attack, this.attack)
     ramp(this.filter.frequency, 1400 + orbit.x * 4200, 0.3)
-    this.ch.set(taper(volume) * (0.55 + 0.45 * orbit.size) * 0.85, orbit.x, 0.05)
-    this.ch.shape(o.filter)
+    this.ch.set(taper(live.volume) * (0.55 + 0.45 * orbit.size) * 0.85, orbit.x, 0.05)
+    this.ch.shape(o.filter, live.cutoff)
   }
 
   trigger(e: SoundEvent, o: WorldObject, h: Harmony) {
@@ -418,10 +425,10 @@ class TextureVoice implements Voice {
     }
   }
 
-  update(o: WorldObject, _h: Harmony, volume: number) {
+  update(o: WorldObject, _h: Harmony, live: Live) {
     ramp(this.filter.frequency, 700 + Math.pow(1 - o.y, 1.6) * 11000, 0.5)
-    this.ch.set(taper(volume) * (0.3 + 0.7 * o.size) * 0.75, o.x, glide(o, 1.5))
-    this.ch.shape(o.filter)
+    this.ch.set(taper(live.volume) * (0.3 + 0.7 * o.size) * 0.75, o.x, glide(o, 1.5))
+    this.ch.shape(o.filter, live.cutoff)
   }
 
   release() {

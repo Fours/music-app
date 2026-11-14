@@ -9,7 +9,7 @@ import { OCTAVE_MAX, OCTAVE_MIN, baseNote, beadNote, clampBead, harmonyOf, joinB
 import type { Orbit, WorldObject } from '../world/types'
 import { Segmented, Slider } from './controls'
 import { FilterField } from './FilterField'
-import { VolumeField } from './VolumeField'
+import { OscillatingSlider } from './OscillatingSlider'
 import { CloseIcon, CopyIcon, MinusIcon, MutedIcon, PlusIcon, ShuffleIcon, SpeakerIcon, TrashIcon } from './icons'
 
 const pctFmt = (v: number) => `${Math.round(v * 100)}%`
@@ -22,6 +22,13 @@ const attackFmt = (v: number) => {
 /** How slowly each note swells in, so struck sounds can blend in rather than ping. */
 function AttackSlider({ value, onChange }: { value: number | undefined; onChange: (attack: number) => void }) {
   return <Slider label="Attack" value={value ?? 0} onChange={onChange} hint={['Sharp', 'Swelling']} format={attackFmt} />
+}
+
+/** Volume, which can oscillate between two levels. */
+function VolumeField({ o }: { o: WorldObject }) {
+  return (
+    <OscillatingSlider o={o} param="volume" label="Volume" onChange={(volume) => app.update(o.id, { volume })} format={pctFmt} />
+  )
 }
 
 /** Panel for the selected object: a few big, friendly controls. */
