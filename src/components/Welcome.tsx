@@ -9,7 +9,7 @@ export function Welcome() {
   return (
     <div className={`welcome ${loading ? 'loading' : ''}`}>
       <div className="welcome-card">
-        <h1 className="welcome-mark">Drift</h1>
+        <h1 className="welcome-mark">Skyloom</h1>
         <p className="welcome-tag">Ambient music you shape by hand.</p>
         <p className="welcome-body">
           Place drones, chimes, pulses, orbits and weather on an open sky. They play off each other, always in

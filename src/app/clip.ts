@@ -102,7 +102,7 @@ export class ClipRecorder {
   }
 }
 
-/** "Drift" and the site's address, small in the bottom-right corner. */
+/** "Skyloom" and the site's address, small in the bottom-right corner. */
 function drawWatermark(ctx: CanvasRenderingContext2D, w: number, h: number) {
   const u = Math.min(w, h) / 1080
   const pad = 36 * u
@@ -119,6 +119,6 @@ function drawWatermark(ctx: CanvasRenderingContext2D, w: number, h: number) {
     y -= 26 * u
   }
   ctx.font = `${Math.round(40 * u)}px "Instrument Serif", Georgia, serif`
-  ctx.fillText('Drift', w - pad, y)
+  ctx.fillText('Skyloom', w - pad, y)
   ctx.restore()
 }

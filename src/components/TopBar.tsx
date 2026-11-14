@@ -18,7 +18,7 @@ export function TopBar() {
   return (
     <header className="topbar">
       <div className="brand">
-        <span className="wordmark">Drift</span>
+        <span className="wordmark">Skyloom</span>
         <button className="scene-name" onClick={() => toggle('scenes')}>
           {sceneName || 'Untitled'}
         </button>
