@@ -35,7 +35,7 @@ This is a spike. Fix only what's needed to measure something. Anything bigger be
 | --- | --- | --- |
 | T1. Capacitor shell | Done | 20a5d6f |
 | T2. Audio basics on a device | Done | 35d89eb |
-| T3. Background playback | In progress |  |
+| T3. Background playback | Done |  |
 | T4. Performance and clips | Not started |  |
 | T5. Go/no-go record | Not started |  |
 
@@ -96,9 +96,17 @@ To see what the audio is doing, tap the Skyloom wordmark five times. A badge sho
 
 **Done when:**
 
-- [ ] We know whether music continues with the screen locked, and for how long.
-- [ ] We know whether timing stays steady in the background.
-- [ ] If it fails, the record lists the options (foreground-only v1, or a native audio engine) with a rough cost for each.
+- [x] We know whether music continues with the screen locked, and for how long.
+- [x] We know whether timing stays steady in the background.
+- [x] If it fails, the record lists the options (foreground-only v1, or a native audio engine) with a rough cost for each. Not needed: it passed.
+
+**Findings:**
+
+- **Screen locked for 11 minutes** (iPhone 14, iOS 27.2, `playback` session): the music played the whole time. The scene was Morning Fog (edited), with drones, chimes, pulses, orbits and a texture all on the canvas.
+- The badge's line on return: `away 11:23 · audio clock +11:23 · ticks 27306 of 27308 · longest gap 0.1 s`. The audio clock kept pace with the wall clock, so sound never stopped. The simulation ran 99.99% of its expected steps, and the longest gap between steps matched what the badge shows in the foreground (Tone's worker timer fires about every 50 ms). So chimes and orbits kept time, not just the held sounds.
+- The badge's log showed only `page hidden` and `page visible`, with no audio state changes in between: iOS never suspended the context, and `keepAudioAwake()` had nothing to do.
+- **Not tested:** the app sent to the home screen instead of locked (expected to behave the same, since iOS treats both as background), and battery use over a long session. Both are worth a look in milestone 2.
+- **Recheck in milestone 2:** this ran with the web view's `playback` session. Once the session is set natively to mix with other audio, confirm background playback still holds, since lock-screen controls and mixing may become a setting.
 
 ### T4. Performance and clips
 

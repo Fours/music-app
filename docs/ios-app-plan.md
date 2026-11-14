@@ -39,7 +39,7 @@ Capacitor first, because it reuses everything already built and keeps the web ve
 
 | # | Milestone | Status |
 | --- | --- | --- |
-| 1 | Spike: Capacitor shell, audio on a real device, background playback, performance, go/no-go | Not started — [spec](milestone-1.md) |
+| 1 | Spike: Capacitor shell, audio on a real device, background playback, performance, go/no-go | In progress (T1–T3 done) — [spec](milestone-1.md) |
 | 2 | Native fit: rename to Skyloom, share sheet, audio session and interruptions, lock-screen controls, durable saves, safe areas, icon and splash, vertical clips | Not started |
 | 3 | App Store ready: developer account, name, screenshots and preview, privacy policy and label, TestFlight beta, submission | Not started |
 | 4 | Launch: landing page, featuring nomination, community launch, short videos, App Store keywords, review of results | Not started |
@@ -51,7 +51,7 @@ Capacitor first, because it reuses everything already built and keeps the web ve
 - Audio session set natively to playback with mix-with-others, so Skyloom can play under music or podcasts (decided in milestone 1, T2). Check that WebKit doesn't reset it.
 - Pause when headphones or AirPods disconnect, through a small native plugin for the route change. Today it carries on through the speaker.
 - Handle interruptions: test calls and Siri, which were skipped in T2.
-- Lock-screen and Control Center controls (play and pause, scene name), if milestone 1 shows background playback works. iOS doesn't give these to apps that mix with other audio, so this may become a setting together with mixing.
+- Lock-screen and Control Center controls (play and pause, scene name). Milestone 1 (T3) showed background playback works: 11 minutes locked with no dropouts and steady timing. iOS doesn't give these to apps that mix with other audio, so this may become a setting together with mixing.
 - Move the autosave from `localStorage` to `@capacitor/preferences`, since iOS can clear web storage when space is low.
 - Safe areas, status bar, app icon, splash screen, and a light haptic tap on placing objects.
 - Vertical (9:16) clip option for TikTok, Reels and Shorts.
