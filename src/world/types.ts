@@ -18,6 +18,14 @@ interface Base {
   volume: number
   /** Sweeps the volume back and forth on its own. Missing in older saves and until first switched on. */
   oscillate?: Oscillation
+  /** Low-pass filter on the object's sound. Missing in older saves and until first touched, which means fully open. */
+  filter?: FilterSettings
+}
+
+export interface FilterSettings {
+  /** 0–1 slider positions; see world/filter.ts for Hz and dB. */
+  cutoff: number
+  resonance: number
 }
 
 export interface Oscillation {

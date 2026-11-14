@@ -1,8 +1,9 @@
 import * as Tone from 'tone'
 import { midiToFreq, type Harmony } from '../music/theory'
+import { OPEN_FILTER, cutoffHz, resonanceDb } from '../world/filter'
 import { baseNote, beadNote } from '../world/pitch'
 import { TEXTURE_LOOPS } from './texture-loops'
-import type { Chime, Drone, Orbit, Pulse, SoundEvent, Texture, WorldObject } from '../world/types'
+import type { Chime, Drone, FilterSettings, Orbit, Pulse, SoundEvent, Texture, WorldObject } from '../world/types'
 
 export interface Buses {
   dry: Tone.InputNode
@@ -63,11 +64,12 @@ function ramp(param: { rampTo(v: number, t: number, start?: number): unknown }, 
 }
 
 /**
- * Per-object output stage: level → panner → dry bus, plus reverb and delay sends.
- * Starts silent and fades in.
+ * Per-object output stage: level → the object's own low-pass → panner → dry
+ * bus, plus reverb and delay sends. Starts silent and fades in.
  */
 class Channel {
   level = new Tone.Gain(0)
+  filter = new Tone.Filter({ type: 'lowpass', frequency: cutoffHz(1), Q: 0, rolloff: -12 })
   panner: Tone.Panner
   sends: Tone.Gain[]
   private nodes: { dispose(): unknown }[] = []
@@ -75,7 +77,8 @@ class Channel {
   /** `channels`: 2 keeps a stereo source's width through the panner, which otherwise sums it to mono. */
   constructor(buses: Buses, reverb: number, delay: number, channels: 1 | 2 = 1) {
     this.panner = new Tone.Panner({ pan: 0, channelCount: channels })
-    this.level.connect(this.panner)
+    this.level.connect(this.filter)
+    this.filter.connect(this.panner)
     this.panner.connect(buses.dry)
     const r = new Tone.Gain(reverb)
     const d = new Tone.Gain(delay)
@@ -96,6 +99,12 @@ class Channel {
     ramp(this.panner.pan, pan(x), time)
   }
 
+  /** The object's Cutoff and Resonance sliders; a short glide so dragging them doesn't zipper. */
+  shape(f: FilterSettings = OPEN_FILTER) {
+    ramp(this.filter.frequency, cutoffHz(f.cutoff), 0.08)
+    ramp(this.filter.Q, resonanceDb(f.resonance), 0.08)
+  }
+
   release(fade = 2.5) {
     const t = at()
     this.level.gain.cancelScheduledValues(t)
@@ -103,6 +112,7 @@ class Channel {
     window.setTimeout(() => {
       for (const n of this.nodes) n.dispose()
       this.level.dispose()
+      this.filter.dispose()
       this.panner.dispose()
       for (const s of this.sends) s.dispose()
     }, fade * 1000 + 500)
@@ -162,6 +172,7 @@ class DroneVoice implements Voice {
     }
     ramp(this.filter.frequency, this.spec.cutoff * (0.45 + d.x * 1.3), 0.4)
     this.ch.set(taper(volume) * (0.4 + 0.6 * d.size) * 0.3, d.x, glide(o, 1.2))
+    this.ch.shape(o.filter)
   }
 
   release() {
@@ -287,6 +298,7 @@ class ChimeVoice implements Voice {
   update(o: WorldObject, _h: Harmony, volume: number) {
     this.attack = syncAttack(this.inst, (o as Chime).attack, this.attack)
     this.ch.set(taper(volume) * (0.5 + 0.5 * o.size) * 0.9, o.x, 0.05)
+    this.ch.shape(o.filter)
   }
   trigger(e: SoundEvent, o: WorldObject, h: Harmony) {
     if (e.type !== 'chime') return
@@ -310,6 +322,7 @@ class PulseVoice implements Voice {
   update(o: WorldObject, _h: Harmony, volume: number) {
     this.attack = syncAttack(this.inst, (o as Pulse).attack, this.attack)
     this.ch.set(taper(volume) * (0.5 + 0.5 * o.size) * 0.8, o.x, 0.05)
+    this.ch.shape(o.filter)
   }
   trigger(e: SoundEvent, o: WorldObject, h: Harmony) {
     if (e.type !== 'pulse') return
@@ -354,6 +367,7 @@ class OrbitVoice implements Voice {
     this.attack = syncAttack(this.inst, orbit.attack, this.attack)
     ramp(this.filter.frequency, 1400 + orbit.x * 4200, 0.3)
     this.ch.set(taper(volume) * (0.55 + 0.45 * orbit.size) * 0.85, orbit.x, 0.05)
+    this.ch.shape(o.filter)
   }
 
   trigger(e: SoundEvent, o: WorldObject, h: Harmony) {
@@ -407,6 +421,7 @@ class TextureVoice implements Voice {
   update(o: WorldObject, _h: Harmony, volume: number) {
     ramp(this.filter.frequency, 700 + Math.pow(1 - o.y, 1.6) * 11000, 0.5)
     this.ch.set(taper(volume) * (0.3 + 0.7 * o.size) * 0.75, o.x, glide(o, 1.5))
+    this.ch.shape(o.filter)
   }
 
   release() {

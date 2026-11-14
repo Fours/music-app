@@ -8,6 +8,7 @@ import { KIND_COLORS, TEXTURE_COLORS } from '../world/palette'
 import { OCTAVE_MAX, OCTAVE_MIN, baseNote, beadNote, clampBead, harmonyOf, joinBead, splitBead } from '../world/pitch'
 import type { Orbit, WorldObject } from '../world/types'
 import { Segmented, Slider } from './controls'
+import { FilterField } from './FilterField'
 import { VolumeField } from './VolumeField'
 import { CloseIcon, CopyIcon, MinusIcon, MutedIcon, PlusIcon, ShuffleIcon, SpeakerIcon, TrashIcon } from './icons'
 
@@ -75,6 +76,7 @@ export function Inspector() {
             <VolumeField o={o} />
             <Slider label="Size" value={o.size} onChange={(size) => set({ size })} format={pctFmt} />
             <Slider label="Drift" value={o.drift} onChange={(drift) => set({ drift })} hint={['Still', 'Wandering']} format={pctFmt} />
+            <FilterField o={o} />
             <p className="tip">Drag it higher or lower to change its note. Further right sounds brighter.</p>
           </>
         )}
@@ -95,6 +97,7 @@ export function Inspector() {
             <AttackSlider value={o.attack} onChange={(attack) => set({ attack })} />
             <Slider label="Speed" value={o.speed} onChange={(speed) => set({ speed })} hint={['Drifting', 'Darting']} format={pctFmt} />
             <Slider label="Size" value={o.size} onChange={(size) => set({ size })} format={pctFmt} />
+            <FilterField o={o} />
             <p className="tip">Flick it to send it flying. Higher on the canvas rings higher notes.</p>
           </>
         )}
@@ -115,6 +118,7 @@ export function Inspector() {
             <AttackSlider value={o.attack} onChange={(attack) => set({ attack })} />
             <Slider label="Rate" value={o.rate} onChange={(rate) => set({ rate })} hint={['Seldom', 'Often']} format={pctFmt} />
             <Slider label="Reach" value={o.reach} onChange={(reach) => set({ reach })} hint={['Close', 'Far']} format={pctFmt} />
+            <FilterField o={o} />
             <p className="tip">Its ripples ring any chimes they pass through.</p>
           </>
         )}
@@ -137,6 +141,7 @@ export function Inspector() {
             <VolumeField o={o} />
             <Slider label="Size" value={o.size} onChange={(size) => set({ size })} format={pctFmt} />
             <Slider label="Drift" value={o.drift} onChange={(drift) => set({ drift })} hint={['Still', 'Wandering']} format={pctFmt} />
+            <FilterField o={o} />
             <p className="tip">Higher up sounds airier and brighter; lower is more muffled.</p>
           </>
         )}
@@ -260,6 +265,7 @@ function OrbitControls({ o }: { o: Orbit }) {
       <Slider label="Evolve" value={o.evolve} onChange={(evolve) => set({ evolve })} hint={['Fixed', 'Restless']} format={pctFmt} />
       <VolumeField o={o} />
       <Slider label="Size" value={o.size} onChange={(size) => set({ size })} hint={['Small & quick', 'Big & slow']} format={pctFmt} />
+      <FilterField o={o} />
       <p className="tip">Drag a bead on the canvas outward to raise its note, inward to lower it.</p>
     </>
   )
