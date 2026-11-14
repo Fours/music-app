@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { app } from '../app/controller'
 import { useStore, type CaptureKind } from '../app/store'
 import { keyName, scaleById } from '../music/theory'
+import { useDebugTaps } from '../app/debug'
 import { ClipIcon, PauseIcon, PlayIcon, ScenesIcon, SlidersIcon } from './icons'
 
 export function TopBar() {
@@ -11,6 +12,7 @@ export function TopBar() {
   const root = useStore(app.ui, (s) => s.settings.root)
   const scale = useStore(app.ui, (s) => s.settings.scale)
   const tempo = useStore(app.ui, (s) => s.settings.tempo)
+  const debugTaps = useDebugTaps()
 
   const toggle = (p: 'settings' | 'scenes') =>
     app.ui.set({ panel: panel === p ? 'none' : p, selectedId: null })
@@ -18,7 +20,9 @@ export function TopBar() {
   return (
     <header className="topbar">
       <div className="brand">
-        <span className="wordmark">Skyloom</span>
+        <span className="wordmark" onClick={debugTaps}>
+          Skyloom
+        </span>
         <button className="scene-name" onClick={() => toggle('scenes')}>
           {sceneName || 'Untitled'}
         </button>

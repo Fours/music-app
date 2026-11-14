@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { app } from './app/controller'
 import { useStore } from './app/store'
+import { DebugBadge } from './components/DebugBadge'
 import { Inspector } from './components/Inspector'
 import { ScenesPanel, SettingsPanel } from './components/Panels'
 import { Stage } from './components/Stage'
@@ -53,6 +54,7 @@ export default function App() {
         </div>
       )}
       <Welcome />
+      <DebugBadge />
     </div>
   )
 }

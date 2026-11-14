@@ -64,6 +64,8 @@ This is a spike. Fix only what's needed to measure something. Anything bigger be
 
 Check each of these on a real device and record what happens in the decision record:
 
+To see what the audio is doing, tap the Skyloom wordmark five times. A badge shows whether the audio context is running, the output level, the audio clock, and the last few changes, with times. Five more taps hide it.
+
 - The silent switch on (the app already sets `navigator.audioSession.type = 'playback'`; confirm WKWebView honours it).
 - A phone call or FaceTime, Siri, and another app starting audio: does Drift stop, and does it resume, or does the AudioContext stay suspended?
 - Headphones unplugged and AirPods connected mid-play.

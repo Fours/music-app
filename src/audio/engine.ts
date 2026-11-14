@@ -155,6 +155,23 @@ export class AudioEngine {
     return (ctx.state as string) === 'running'
   }
 
+  /** The underlying Web Audio context. */
+  context(): BaseAudioContext {
+    return Tone.getContext().rawContext as BaseAudioContext
+  }
+
+  /** What the debug badge shows: context state, audio clock, output level and iOS audio session type. */
+  debugInfo() {
+    const nav = navigator as Navigator & { audioSession?: { type: string } }
+    const ctx = Tone.getContext().rawContext
+    return {
+      state: this.ready ? (ctx.state as string) : 'not started',
+      time: this.ready ? ctx.currentTime.toFixed(1) : '–',
+      level: this.ready ? this.level().toFixed(3) : '–',
+      session: nav.audioSession?.type ?? 'n/a',
+    }
+  }
+
   level(): number {
     if (!this.ready) return 0
     const v = this.meter.getValue()
