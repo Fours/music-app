@@ -34,8 +34,8 @@ This is a spike. Fix only what's needed to measure something. Anything bigger be
 | Task | Status | Commit |
 | --- | --- | --- |
 | T1. Capacitor shell | Done | 20a5d6f |
-| T2. Audio basics on a device | Done |  |
-| T3. Background playback | Not started |  |
+| T2. Audio basics on a device | Done | 35d89eb |
+| T3. Background playback | In progress |  |
 | T4. Performance and clips | Not started |  |
 | T5. Go/no-go record | Not started |  |
 
@@ -92,6 +92,7 @@ To see what the audio is doing, tap the Skyloom wordmark five times. A badge sho
 - Add the `audio` background mode to `Info.plist`.
 - Lock the screen while a busy scene plays (chimes, pulses, orbits, a texture) and listen for 10 minutes.
 - The simulation runs on Tone's transport, which uses a worker timer. Note whether chimes and orbits keep playing in time, or whether only held sounds (drones, textures) carry on.
+- With the debug badge on, coming back to the app adds a yellow line about the time away: how long, how far the audio clock ran, how many simulation steps ran out of how many expected, and the longest gap between steps. A stalled audio clock means sound stopped. Missing steps or a long gap mean chimes and orbits stopped or stuttered while held sounds carried on.
 
 **Done when:**
 

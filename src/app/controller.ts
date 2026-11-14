@@ -36,6 +36,10 @@ export class Controller {
   })
   private audioDriven = false
   private toastTimer = 0
+  /** Simulation steps run so far, and the longest wall-clock gap between two (ms). For the debug badge. */
+  ticks = 0
+  maxTickGap = 0
+  private lastTickAt = 0
 
   constructor() {
     const saved = loadSaved()
@@ -135,6 +139,10 @@ export class Controller {
   }
 
   private tick(time: number) {
+    const now = performance.now()
+    if (this.lastTickAt) this.maxTickGap = Math.max(this.maxTickGap, now - this.lastTickAt)
+    this.lastTickAt = now
+    this.ticks++
     const s = this.settings
     const h = harmonyOf(s)
     const events = this.world.step(TICK, time, s)
