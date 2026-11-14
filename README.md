@@ -1,6 +1,6 @@
-# Drift
+# Skyloom
 
-Ambient music you shape by hand. Drift is a generative canvas: you place glowing objects on an open sky, and they play off each other to make slow, evolving music that's always in tune.
+Ambient music you shape by hand. Skyloom is a generative canvas: you place glowing objects on an open sky, and they play off each other to make slow, evolving music that's always in tune.
 
 ## Objects
 
