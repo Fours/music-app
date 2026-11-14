@@ -33,8 +33,8 @@ This is a spike. Fix only what's needed to measure something. Anything bigger be
 
 | Task | Status | Commit |
 | --- | --- | --- |
-| T1. Capacitor shell | In progress: device checks left |  |
-| T2. Audio basics on a device | Not started |  |
+| T1. Capacitor shell | Done | 20a5d6f |
+| T2. Audio basics on a device | In progress |  |
 | T3. Background playback | Not started |  |
 | T4. Performance and clips | Not started |  |
 | T5. Go/no-go record | Not started |  |
@@ -48,9 +48,9 @@ This is a spike. Fix only what's needed to measure something. Anything bigger be
 **Done when:**
 
 - [x] The app builds and launches in the iOS Simulator (iPhone 17 Pro, iOS 26.5) and a scene plays.
-- [ ] The app builds and launches on a real device.
+- [x] The app builds and launches on a real device (iPhone 14, iOS 27.2, free Personal Team signing).
 - [x] `npm run check:offline` passes: the build references no other hosts, and every file `index.html` links to is bundled.
-- [ ] With the device in airplane mode, every scene loads and plays.
+- [x] With the device in airplane mode, every scene loads and plays.
 - [x] `npm run build` and `npm run dev` behave as before.
 
 **Findings:**
@@ -73,6 +73,10 @@ Check each of these on a real device and record what happens in the decision rec
 
 - [ ] Each case above has a result (works, breaks, or works with a known fix).
 - [ ] Anything broken has a proposed fix noted for milestone 2.
+
+**Findings so far:**
+
+- **Leaving the app and coming back** (iPhone 14, iOS 27.2): sound played, but after going to the home screen and reopening the app it was silent. The iOS Simulator doesn't show this; audio resumes there. The likely cause is iOS stopping the web view's audio context when the app leaves the screen and not restarting it. `keepAudioAwake()` in `src/app/controller.ts` now restarts the context when the page is shown again or the context stops, falls back to the next tap if iOS refuses, and Play restarts it too. **Confirmed on the device:** sound comes back both when the app was left playing and when it was paused, sent to the home screen, reopened and played.
 
 ### T3. Background playback
 

@@ -108,6 +108,30 @@ export class Controller {
     this.audioDriven = true
     engine.setPaused(false, this.settings.volume)
     this.ui.set({ phase: 'running', playing: true })
+    this.keepAudioAwake()
+  }
+
+  /**
+   * iOS stops the audio when the app leaves the screen and may not restart it
+   * on return, which leaves the app silent while it looks like it's playing.
+   * Restart it whenever the page is shown again or the context stops. If the
+   * system only allows that from a touch, do it on the next tap.
+   */
+  private keepAudioAwake() {
+    let waitingForTap = false
+    const wake = async () => {
+      if (document.visibilityState !== 'visible' || !this.ui.get().playing) return
+      if ((await engine.wake()) || waitingForTap) return
+      waitingForTap = true
+      const onTap = () => {
+        waitingForTap = false
+        void engine.wake()
+      }
+      window.addEventListener('pointerdown', onTap, { once: true, capture: true })
+    }
+    document.addEventListener('visibilitychange', wake)
+    window.addEventListener('pageshow', wake)
+    Tone.getContext().rawContext.addEventListener('statechange', wake)
   }
 
   private tick(time: number) {
@@ -143,6 +167,8 @@ export class Controller {
       transport.pause()
       engine.setPaused(true, this.settings.volume)
     } else {
+      // Play is a tap, so it can also restart audio the system stopped.
+      void engine.wake()
       transport.start('+0.05')
       engine.setPaused(false, this.settings.volume)
     }

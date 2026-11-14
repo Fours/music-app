@@ -137,6 +137,24 @@ export class AudioEngine {
     this.master.gain.rampTo(paused ? 0 : taper(volume, 0.8) * MAKEUP, paused ? 0.6 : 1.2)
   }
 
+  /**
+   * Restarts the audio context if the system stopped it. On iPhone and iPad,
+   * leaving the app suspends or interrupts the context, and coming back doesn't
+   * always restart it. Returns whether audio is running.
+   */
+  async wake(): Promise<boolean> {
+    if (!this.ready) return true
+    const ctx = Tone.getContext().rawContext as AudioContext
+    // WebKit also has a non-standard 'interrupted' state, which resume() clears too.
+    if (ctx.state === 'running') return true
+    try {
+      await ctx.resume()
+    } catch (err) {
+      console.warn(`Audio could not resume from '${ctx.state}': ${String(err)}`)
+    }
+    return (ctx.state as string) === 'running'
+  }
+
   level(): number {
     if (!this.ready) return 0
     const v = this.meter.getValue()
