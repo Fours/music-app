@@ -8,6 +8,7 @@ import { KIND_COLORS, TEXTURE_COLORS } from '../world/palette'
 import { OCTAVE_MAX, OCTAVE_MIN, baseNote, beadNote, clampBead, harmonyOf, joinBead, splitBead } from '../world/pitch'
 import type { Orbit, WorldObject } from '../world/types'
 import { Segmented, Slider } from './controls'
+import { VolumeField } from './VolumeField'
 import { CloseIcon, CopyIcon, MinusIcon, MutedIcon, PlusIcon, ShuffleIcon, SpeakerIcon, TrashIcon } from './icons'
 
 const pctFmt = (v: number) => `${Math.round(v * 100)}%`
@@ -71,7 +72,7 @@ export function Inspector() {
                 { value: 'choir', label: 'Choir' },
               ]}
             />
-            <Slider label="Volume" value={o.volume} onChange={(volume) => set({ volume })} format={pctFmt} />
+            <VolumeField o={o} />
             <Slider label="Size" value={o.size} onChange={(size) => set({ size })} format={pctFmt} />
             <Slider label="Drift" value={o.drift} onChange={(drift) => set({ drift })} hint={['Still', 'Wandering']} format={pctFmt} />
             <p className="tip">Drag it higher or lower to change its note. Further right sounds brighter.</p>
@@ -90,7 +91,7 @@ export function Inspector() {
                 { value: 'glass', label: 'Glass' },
               ]}
             />
-            <Slider label="Volume" value={o.volume} onChange={(volume) => set({ volume })} format={pctFmt} />
+            <VolumeField o={o} />
             <AttackSlider value={o.attack} onChange={(attack) => set({ attack })} />
             <Slider label="Speed" value={o.speed} onChange={(speed) => set({ speed })} hint={['Drifting', 'Darting']} format={pctFmt} />
             <Slider label="Size" value={o.size} onChange={(size) => set({ size })} format={pctFmt} />
@@ -110,7 +111,7 @@ export function Inspector() {
                 { value: 'piano', label: 'Felt piano' },
               ]}
             />
-            <Slider label="Volume" value={o.volume} onChange={(volume) => set({ volume })} format={pctFmt} />
+            <VolumeField o={o} />
             <AttackSlider value={o.attack} onChange={(attack) => set({ attack })} />
             <Slider label="Rate" value={o.rate} onChange={(rate) => set({ rate })} hint={['Seldom', 'Often']} format={pctFmt} />
             <Slider label="Reach" value={o.reach} onChange={(reach) => set({ reach })} hint={['Close', 'Far']} format={pctFmt} />
@@ -133,7 +134,7 @@ export function Inspector() {
                 { value: 'embers', label: 'Embers' },
               ]}
             />
-            <Slider label="Volume" value={o.volume} onChange={(volume) => set({ volume })} format={pctFmt} />
+            <VolumeField o={o} />
             <Slider label="Size" value={o.size} onChange={(size) => set({ size })} format={pctFmt} />
             <Slider label="Drift" value={o.drift} onChange={(drift) => set({ drift })} hint={['Still', 'Wandering']} format={pctFmt} />
             <p className="tip">Higher up sounds airier and brighter; lower is more muffled.</p>
@@ -257,7 +258,7 @@ function OrbitControls({ o }: { o: Orbit }) {
         ]}
       />
       <Slider label="Evolve" value={o.evolve} onChange={(evolve) => set({ evolve })} hint={['Fixed', 'Restless']} format={pctFmt} />
-      <Slider label="Volume" value={o.volume} onChange={(volume) => set({ volume })} format={pctFmt} />
+      <VolumeField o={o} />
       <Slider label="Size" value={o.size} onChange={(size) => set({ size })} hint={['Small & quick', 'Big & slow']} format={pctFmt} />
       <p className="tip">Drag a bead on the canvas outward to raise its note, inward to lower it.</p>
     </>

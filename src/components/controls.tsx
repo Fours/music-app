@@ -1,4 +1,4 @@
-import { useId, type CSSProperties } from 'react'
+import { useId, type CSSProperties, type ReactNode } from 'react'
 
 export function Slider({
   label,
@@ -9,6 +9,7 @@ export function Slider({
   step = 0.01,
   format,
   hint,
+  action,
 }: {
   label: string
   value: number
@@ -18,6 +19,8 @@ export function Slider({
   step?: number
   format?: (v: number) => string
   hint?: [string, string]
+  /** A small control beside the value, such as a toggle. */
+  action?: ReactNode
 }) {
   const id = useId()
   const pct = ((value - min) / (max - min)) * 100
@@ -25,7 +28,14 @@ export function Slider({
     <div className="field">
       <div className="field-head">
         <label htmlFor={id}>{label}</label>
-        <span className="field-value">{format ? format(value) : `${Math.round(pct)}`}</span>
+        {action ? (
+          <div className="mini-actions">
+            <span className="field-value">{format ? format(value) : `${Math.round(pct)}`}</span>
+            {action}
+          </div>
+        ) : (
+          <span className="field-value">{format ? format(value) : `${Math.round(pct)}`}</span>
+        )}
       </div>
       <input
         id={id}

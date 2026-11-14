@@ -91,7 +91,7 @@ export class Controller {
       return
     }
     engine.applySettings(this.settings)
-    engine.sync(this.world.objects, harmonyOf(this.settings))
+    engine.sync(this.world.objects, harmonyOf(this.settings), undefined, (o) => this.world.level(o))
     // Events stamped on the old clock would flash forever; reset them.
     for (const rt of this.world.rt.values()) {
       rt.flash = -10
@@ -111,7 +111,7 @@ export class Controller {
     const s = this.settings
     const h = harmonyOf(s)
     const events = this.world.step(TICK, time, s)
-    engine.sync(this.world.objects, h, time)
+    engine.sync(this.world.objects, h, time, (o) => this.world.level(o))
     for (const e of events) {
       const o = this.world.objects.find((x) => x.id === e.id)
       if (o) engine.play(e, o, h)

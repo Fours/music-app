@@ -69,6 +69,12 @@ export const ShuffleIcon = (p: P) => (
     <path d="M4 7h3c4 0 6 10 10 10h3M4 17h3c1.5 0 2.7-1.4 3.8-3.2M13.2 10.2C14.3 8.4 15.5 7 17 7h3M18 4.5 20.5 7 18 9.5M18 14.5l2.5 2.5-2.5 2.5" />
   </svg>
 )
+/** A sine wave, for oscillating a volume. */
+export const WaveIcon = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M3 12c1.5-4.5 3-6 4.5-6S10.5 7.5 12 12s3 6 4.5 6 3-1.5 4.5-6" />
+  </svg>
+)
 export const MinusIcon = (p: P) => (
   <svg {...base(p)}>
     <path d="M6 12h12" />

@@ -16,6 +16,16 @@ interface Base {
   /** Size 0–1; radius in px is derived from the canvas's short side. */
   size: number
   volume: number
+  /** Sweeps the volume back and forth on its own. Missing in older saves and until first switched on. */
+  oscillate?: Oscillation
+}
+
+export interface Oscillation {
+  on: boolean
+  /** The two ends of the sweep on the 0–1 volume slider, in either order. */
+  ends: [number, number]
+  /** Seconds for one full cycle, quiet → loud → quiet. */
+  period: number
 }
 
 export interface Drone extends Base {

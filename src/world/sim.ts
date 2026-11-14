@@ -1,5 +1,6 @@
 import { radius, reach, solidRadius } from './geometry'
 import { clampBead, harmonyOf } from './pitch'
+import { phaseFor, sweep } from './oscillate'
 import type { Orbit, Settings, SoundEvent, WorldObject } from './types'
 
 export interface Ripple {
@@ -18,6 +19,9 @@ export interface Runtime {
   /** Time of the most recent sound, for visual flashes. */
   flash: number
   flashAmount: number
+  /** How far through its volume oscillation the object is, 0–1. */
+  swell: number
+  swellOn: boolean
   // pulse
   phase: number
   ripples: Ripple[]
@@ -45,6 +49,8 @@ function newRuntime(o: WorldObject): Runtime {
     lastHit: -10,
     flash: -10,
     flashAmount: 0,
+    swell: 0,
+    swellOn: false,
     phase: o.kind === 'pulse' ? 0.6 + Math.random() * 0.3 : 0,
     ripples: [],
     theta,
@@ -99,6 +105,12 @@ export class World {
     return r
   }
 
+  /** The volume an object is playing at right now, with any oscillation applied. */
+  level(o: WorldObject): number {
+    const osc = o.oscillate
+    return osc?.on ? sweep(osc, this.runtime(o).swell) : o.volume
+  }
+
   /** Advance by dt seconds. `time` is when this tick starts on the audio clock. */
   step(dt: number, time: number, settings: Settings): SoundEvent[] {
     const events: SoundEvent[] = []
@@ -121,6 +133,15 @@ export class World {
     for (const o of this.objects) {
       const r = this.runtime(o)
       const held = this.held.has(o.id)
+
+      // Phase is accumulated rather than read off the clock, so changing the
+      // cycle length mid-sweep doesn't make the volume jump.
+      const osc = o.oscillate
+      if (osc?.on) {
+        if (!r.swellOn) r.swell = phaseFor(osc, o.volume)
+        r.swellOn = true
+        r.swell = (r.swell + dt / osc.period) % 1
+      } else r.swellOn = false
 
       switch (o.kind) {
         case 'drone':

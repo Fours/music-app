@@ -97,12 +97,12 @@ export class AudioEngine {
   }
 
   /** Bring voices in line with the objects on the canvas. */
-  sync(objects: WorldObject[], h: Harmony, time = Tone.now()) {
+  sync(objects: WorldObject[], h: Harmony, time = Tone.now(), level: (o: WorldObject) => number = (o) => o.volume) {
     if (!this.ready) return
-    withClock(time, () => this.syncAt(objects, h))
+    withClock(time, () => this.syncAt(objects, h, level))
   }
 
-  private syncAt(objects: WorldObject[], h: Harmony) {
+  private syncAt(objects: WorldObject[], h: Harmony, level: (o: WorldObject) => number) {
     const seen = new Set<string>()
     for (const o of objects) {
       seen.add(o.id)
@@ -116,7 +116,7 @@ export class AudioEngine {
         slot = { voice: createVoice(o, this.buses), signature }
         this.slots.set(o.id, slot)
       }
-      slot.voice.update(o, h)
+      slot.voice.update(o, h, level(o))
     }
     for (const [id, slot] of this.slots) {
       if (!seen.has(id)) {

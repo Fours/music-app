@@ -62,7 +62,7 @@ export function draw(ctx: CanvasRenderingContext2D, world: World, view: View) {
     const r = radius(o, unit) * 3.2
     const g = ctx.createRadialGradient(x, y, 0, x, y, r)
     const c = TEXTURE_COLORS[o.sound]
-    g.addColorStop(0, rgba(c, 0.2 * o.volume + 0.06))
+    g.addColorStop(0, rgba(c, 0.2 * world.level(o) + 0.06))
     g.addColorStop(1, rgba(c, 0))
     ctx.fillStyle = g
     ctx.fillRect(0, 0, w, h)
@@ -188,7 +188,7 @@ function drawDrone(ctx: CanvasRenderingContext2D, world: World, o: Drone, view: 
   const r = base * breath
   const color = KIND_COLORS.drone
   const bump = 1 - since(view.now, rt.flash, 1.2)
-  const a = 0.32 + 0.5 * o.volume + bump * 0.15
+  const a = 0.32 + 0.5 * world.level(o) + bump * 0.15
 
   // Two offset lobes so drones read as soft, living shapes rather than discs.
   for (let i = 0; i < 2; i++) {
@@ -280,7 +280,7 @@ function drawPulse(ctx: CanvasRenderingContext2D, world: World, o: Pulse, view: 
   for (const rp of rt.ripples) {
     const k = rp.r / rp.max
     if (rp.r <= 0) continue
-    ctx.strokeStyle = rgba(color, Math.pow(1 - k, 1.4) * 0.6 * (0.4 + o.volume * 0.6))
+    ctx.strokeStyle = rgba(color, Math.pow(1 - k, 1.4) * 0.6 * (0.4 + world.level(o) * 0.6))
     ctx.lineWidth = 1.4 * (1 - k) + 0.4
     circle(ctx, x, y, rp.r + r)
     ctx.stroke()
@@ -437,7 +437,7 @@ function drawTexture(ctx: CanvasRenderingContext2D, world: World, o: Texture, vi
   const s = seed(o.id)
   const color = TEXTURE_COLORS[o.sound]
   const haze = ctx.createRadialGradient(x, y, 0, x, y, r)
-  haze.addColorStop(0, rgba(color, 0.3 + o.volume * 0.3))
+  haze.addColorStop(0, rgba(color, 0.3 + world.level(o) * 0.3))
   haze.addColorStop(0.7, rgba(color, 0.14))
   haze.addColorStop(1, rgba(color, 0))
   ctx.fillStyle = haze
