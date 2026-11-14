@@ -11,6 +11,18 @@ export interface Capture {
   saving: boolean
 }
 
+/** A finished recording or clip, shown in the app because iOS web views can't download files. */
+export interface Preview {
+  kind: CaptureKind
+  url: string
+  name: string
+  type: string
+  bytes: number
+  seconds: number
+  /** Clips only: frames painted, and how many a steady 30 fps would give. */
+  frames?: { drawn: number; expected: number; width: number; height: number }
+}
+
 export interface UIState {
   phase: Phase
   loadProgress: number
@@ -25,6 +37,7 @@ export interface UIState {
   version: number
   /** An audio recording or video clip in progress (or being saved). */
   capture: Capture | null
+  preview: Preview | null
   panel: Panel
   toast: { id: number; text: string } | null
   objectCount: number

@@ -35,8 +35,8 @@ This is a spike. Fix only what's needed to measure something. Anything bigger be
 | --- | --- | --- |
 | T1. Capacitor shell | Done | 20a5d6f |
 | T2. Audio basics on a device | Done | 35d89eb |
-| T3. Background playback | Done |  |
-| T4. Performance and clips | Not started |  |
+| T3. Background playback | Done | 22c3f6c |
+| T4. Performance and clips | In progress |  |
 | T5. Go/no-go record | Not started |  |
 
 ### T1. Capacitor shell
@@ -112,6 +112,21 @@ To see what the audio is doing, tap the Skyloom wordmark five times. A badge sho
 
 - On the oldest device we want to support, play the busiest scene for 5 minutes and watch for dropped frames and audio glitches.
 - Record a 30-second clip on the device. Check that `MediaRecorder` and `canvas.captureStream` work in WKWebView, which format comes out, and whether the video stutters.
+
+The only device is an iPhone 14 (A15, 60 Hz screen, iOS 27.2), so it's the baseline. Older devices stay untested and T5 says so.
+
+**How to measure:**
+
+- The debug badge has two blue lines. The first is frames: the current frame rate, how many 60 Hz frames were dropped out of all frames, and the slowest single frame. The second is audio timing: how many 25 ms simulation steps ran after their notes were due (each is a likely click or late note), the longest gap between steps, the object count, and how long the counts have run. Tap the badge to restart the counts, for example once a scene has loaded.
+- In the iOS app, finishing a clip or a recording opens a preview that plays it and lists the format, size, length, resolution and, for clips, how many frames were drawn out of the 30 per second expected. Download links do nothing in a WKWebView, so this stands in until the share sheet in milestone 2. The web build still downloads.
+
+**Runs:**
+
+1. Rain on Glass, the largest scene (7 objects), for 5 minutes. Tap the badge once it has loaded.
+2. A stress run: add objects by hand to about 15 (3 of each kind), restart the counts, and play for 2 minutes.
+3. A 30-second clip of Rain on Glass. Play it back in the preview and watch for stutter or audio drift.
+
+**Simulator check** (iPhone 17 Pro, iOS 26.5; not a measure of device performance): Morning Fog ran at 60 fps with no late steps. While a clip recorded it fell to about 26 fps, and 362 of 419 frames were drawn, since the simulator encodes video in software. The clip came out as MP4 (H.264 and AAC, `avc1.640028`), 884×1920, 9.5 MB for 14 seconds, and played back with sound and the watermark. A 9-second recording came out as a 1.8 MB WAV and played.
 
 **Done when:**
 

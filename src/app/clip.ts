@@ -38,6 +38,9 @@ export class ClipRecorder {
   private chunks: Blob[] = []
   private scale: number
   private lastFrame = -Infinity
+  /** Frames painted into the clip, and when recording started (ms), to check against FPS. */
+  frames = 0
+  private startedAt = 0
 
   /** `width` and `height` are the stage size in CSS pixels; the clip keeps its shape. */
   constructor(audio: MediaStream, width: number, height: number, type: string) {
@@ -65,6 +68,20 @@ export class ClipRecorder {
   start() {
     // Collect data every second so a long clip doesn't sit in one huge buffer.
     this.recorder.start(1000)
+    this.startedAt = performance.now()
+  }
+
+  get width() {
+    return this.canvas.width
+  }
+
+  get height() {
+    return this.canvas.height
+  }
+
+  /** How many frames a clip of this length should have. */
+  get expectedFrames() {
+    return Math.round(((performance.now() - this.startedAt) / 1000) * FPS)
   }
 
   /**
@@ -74,6 +91,7 @@ export class ClipRecorder {
   frame(ms: number, paint: Paint) {
     if (ms - this.lastFrame < 1000 / FPS - 2) return
     this.lastFrame = ms
+    this.frames++
     const { ctx, canvas } = this
     ctx.save()
     ctx.setTransform(this.scale, 0, 0, this.scale, 0, 0)

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { app } from '../app/controller'
 import { debug } from '../app/debug'
 import { useStore } from '../app/store'
@@ -9,6 +9,8 @@ const mmss = (seconds: number) => {
   const s = Math.round(seconds)
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 }
+/** WKWebView draws at 60 Hz, even on ProMotion screens, unless a hidden setting is changed. */
+const FRAME_MS = 1000 / 60
 
 /**
  * A small readout of the audio engine's state, for testing on phones and
@@ -22,6 +24,9 @@ export function DebugBadge() {
   const [log, setLog] = useState<string[]>([])
   // How the last stretch off screen went, kept until the next one.
   const [away, setAway] = useState<string | null>(null)
+  // Frame rate and audio timing since the badge was turned on or last tapped.
+  const [perf, setPerf] = useState<string[]>([])
+  const reset = useRef(() => {})
 
   useEffect(() => {
     if (!on) return
@@ -34,8 +39,44 @@ export function DebugBadge() {
     }
     // The engine swaps in its own context when it starts, so follow whichever is current.
     let ctx: BaseAudioContext | null = null
+    // Frames: count each animation frame, and how many 60 Hz frames were missed between two.
+    let run = { since: 0, frames: 0, dropped: 0, worst: 0, ticks: 0, late: 0 }
+    const recent: number[] = []
+    let lastFrame = 0
+    let raf = 0
+    reset.current = () => {
+      run = { since: performance.now(), frames: 0, dropped: 0, worst: 0, ticks: app.ticks, late: app.lateTicks }
+      app.maxTickGap = 0
+      lastFrame = 0
+    }
+    reset.current()
+    const onFrame = (ms: number) => {
+      const dt = ms - lastFrame
+      // A gap over a second means the page was hidden, not that frames dropped.
+      if (lastFrame && dt < 1000) {
+        run.frames++
+        run.dropped += Math.max(0, Math.round(dt / FRAME_MS) - 1)
+        run.worst = Math.max(run.worst, dt)
+      }
+      lastFrame = ms
+      recent.push(ms)
+      while (recent[0] < ms - 1000) recent.shift()
+      raf = requestAnimationFrame(onFrame)
+    }
+    raf = requestAnimationFrame(onFrame)
+    const showPerf = () => {
+      const drawn = run.frames + run.dropped
+      const pct = drawn ? ((run.dropped / drawn) * 100).toFixed(1) : '0.0'
+      const ticks = app.ticks - run.ticks
+      setPerf([
+        `fps ${recent.length} · dropped ${run.dropped} of ${drawn} (${pct}%) · worst ${Math.round(run.worst)} ms`,
+        `late ticks ${app.lateTicks - run.late} of ${ticks} · max gap ${(app.maxTickGap / 1000).toFixed(2)} s · ` +
+          `${app.world.objects.length} objects · ${mmss((performance.now() - run.since) / 1000)}`,
+      ])
+    }
     const t = window.setInterval(() => {
       setInfo(engine.debugInfo())
+      showPerf()
       const current = engine.context()
       if (current !== ctx) {
         ctx?.removeEventListener('statechange', onState)
@@ -68,6 +109,7 @@ export function DebugBadge() {
     document.addEventListener('visibilitychange', onVisibility)
     return () => {
       window.clearInterval(t)
+      cancelAnimationFrame(raf)
       ctx?.removeEventListener('statechange', onState)
       document.removeEventListener('visibilitychange', onVisibility)
     }
@@ -75,7 +117,7 @@ export function DebugBadge() {
 
   if (!on) return null
   return (
-    <div className="debug-badge" aria-hidden>
+    <div className="debug-badge" aria-hidden onClick={() => reset.current()}>
       <div>
         audio <b className={info.state === 'running' ? 'ok' : 'bad'}>{info.state}</b> · level {info.level} ·{' '}
         {app.ui.get().playing ? 'playing' : 'paused'}
@@ -83,6 +125,11 @@ export function DebugBadge() {
       <div>
         clock {info.time} · session {info.session}
       </div>
+      {perf.map((line, i) => (
+        <div key={i} className="debug-perf">
+          {line}
+        </div>
+      ))}
       {away && <div className="debug-away">{away}</div>}
       {log.map((line, i) => (
         <div key={i} className="debug-log">

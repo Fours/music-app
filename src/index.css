@@ -998,7 +998,8 @@ p {
   background: rgba(42, 45, 56, 0.82);
   color: #fff;
   font: 11px/1.45 ui-monospace, 'SF Mono', Menlo, monospace;
-  pointer-events: none;
+  /* Tapping the badge restarts the frame and timing counts. */
+  cursor: pointer;
 }
 .debug-badge .ok {
   color: #8fe0a0;
@@ -1009,8 +1010,76 @@ p {
 .debug-log {
   opacity: 0.7;
 }
+.debug-perf {
+  color: #a8d4ff;
+}
 .debug-away {
   color: #ffd98a;
+}
+
+/* ---------------------------------------------------------- clip preview */
+
+.preview-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 55;
+  display: grid;
+  place-items: center;
+  padding: calc(16px + var(--safe-top)) 16px calc(16px + var(--safe-bottom));
+  background: rgba(42, 45, 56, 0.28);
+}
+.preview {
+  width: min(100%, 560px);
+  max-height: 100%;
+  overflow: auto;
+  padding: 16px;
+  border-radius: var(--radius);
+  background: var(--glass-strong);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+.preview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.preview-head h2 {
+  margin: 0;
+  font: 400 26px/1 var(--serif);
+}
+.preview-close {
+  padding: 7px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ink);
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.preview video {
+  display: block;
+  width: 100%;
+  max-height: 60vh;
+  border-radius: 12px;
+  background: #000;
+}
+.preview audio {
+  display: block;
+  width: 100%;
+}
+.preview-note {
+  margin: 12px 0 4px;
+  color: var(--ink-2);
+  font-size: 13px;
+}
+.preview-details {
+  margin: 0;
+  color: var(--ink-3);
+  font-size: 12px;
+  overflow-wrap: anywhere;
 }
 
 /* ------------------------------------------------------------------ toast */

@@ -1,3 +1,4 @@
+import { Capacitor } from '@capacitor/core'
 import * as Tone from 'tone'
 import { engine } from '../audio/engine'
 import { encodeWav } from '../audio/wav'
@@ -7,7 +8,7 @@ import { PRESETS } from '../world/presets'
 import { World } from '../world/sim'
 import { LIMITS, type Kind, type Scene, type Settings, type WorldObject } from '../world/types'
 import { ClipRecorder, clipType } from './clip'
-import { createStore, type CaptureKind, type UIState } from './store'
+import { createStore, type CaptureKind, type Preview, type UIState } from './store'
 
 const TICK = 0.025
 const MAX_CLIP_SECONDS = 300
@@ -30,6 +31,7 @@ export class Controller {
     settings: PRESETS[0].build().settings,
     version: 0,
     capture: null,
+    preview: null,
     panel: 'none',
     toast: null,
     objectCount: 0,
@@ -39,6 +41,8 @@ export class Controller {
   /** Simulation steps run so far, and the longest wall-clock gap between two (ms). For the debug badge. */
   ticks = 0
   maxTickGap = 0
+  /** Steps that ran after their own start time, so their notes played late. A sign of audio glitches. */
+  lateTicks = 0
   private lastTickAt = 0
 
   constructor() {
@@ -143,6 +147,9 @@ export class Controller {
     if (this.lastTickAt) this.maxTickGap = Math.max(this.maxTickGap, now - this.lastTickAt)
     this.lastTickAt = now
     this.ticks++
+    // Tone runs each step up to 120 ms ahead of time; if the main thread stalled
+    // longer than that, the step's notes were already due when it ran.
+    if (time < Tone.getContext().rawContext.currentTime) this.lateTicks++
     const s = this.settings
     const h = harmonyOf(s)
     const events = this.world.step(TICK, time, s)
@@ -334,12 +341,20 @@ export class Controller {
       if (capture.kind === 'audio') {
         const blob = await engine.recorder.stop()
         const decoded = await Tone.getContext().rawContext.decodeAudioData(await blob.arrayBuffer())
-        this.download(encodeWav(decoded as AudioBuffer), `${base}.wav`)
+        const wav = encodeWav(decoded as AudioBuffer)
+        this.deliver(wav, `${base}.wav`, { kind: 'audio', seconds: decoded.duration })
       } else {
         window.clearTimeout(this.clipTimer)
         const clip = this.clip!
         this.clip = null
-        this.download(await clip.stop(), `${base}.${clip.extension}`)
+        const frames = { drawn: clip.frames, expected: clip.expectedFrames, width: clip.width, height: clip.height }
+        const blob = await clip.stop()
+        this.deliver(blob, `${base}.${clip.extension}`, {
+          kind: 'video',
+          seconds: (Date.now() - capture.since) / 1000,
+          frames,
+          type: clip.type,
+        })
       }
     } catch (err) {
       console.error(err)
@@ -347,6 +362,24 @@ export class Controller {
     } finally {
       this.ui.set({ capture: null })
     }
+  }
+
+  /**
+   * Download links do nothing inside the iOS app, so there the recording opens
+   * in a preview instead. Milestone 2 replaces this with the share sheet.
+   */
+  private deliver(blob: Blob, name: string, info: Pick<Preview, 'kind' | 'seconds' | 'frames'> & { type?: string }) {
+    if (!Capacitor.isNativePlatform()) return this.download(blob, name)
+    this.closePreview()
+    const url = URL.createObjectURL(blob)
+    this.ui.set({ preview: { ...info, url, name, type: info.type ?? blob.type, bytes: blob.size } })
+  }
+
+  closePreview() {
+    const preview = this.ui.get().preview
+    if (!preview) return
+    URL.revokeObjectURL(preview.url)
+    this.ui.set({ preview: null })
   }
 
   private download(blob: Blob, name: string) {
