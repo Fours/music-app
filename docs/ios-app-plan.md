@@ -48,8 +48,10 @@ Capacitor first, because it reuses everything already built and keeps the web ve
 
 - Rename the app to Skyloom: the wordmark, page title, welcome screen, clip watermark, README, and the names of downloaded recordings and clips. Keep the `drift:scene` storage key, or migrate it, so existing saved scenes still load.
 - Share sheet for WAV recordings and video clips (`@capacitor/share` and `@capacitor/filesystem`). Download links don't work in a WKWebView.
-- Audio session set to playback, and handling interruptions and route changes (headphones unplugged, AirPods connected).
-- Lock-screen and Control Center controls (play and pause, scene name), if milestone 1 shows background playback works.
+- Audio session set natively to playback with mix-with-others, so Skyloom can play under music or podcasts (decided in milestone 1, T2). Check that WebKit doesn't reset it.
+- Pause when headphones or AirPods disconnect, through a small native plugin for the route change. Today it carries on through the speaker.
+- Handle interruptions: test calls and Siri, which were skipped in T2.
+- Lock-screen and Control Center controls (play and pause, scene name), if milestone 1 shows background playback works. iOS doesn't give these to apps that mix with other audio, so this may become a setting together with mixing.
 - Move the autosave from `localStorage` to `@capacitor/preferences`, since iOS can clear web storage when space is low.
 - Safe areas, status bar, app icon, splash screen, and a light haptic tap on placing objects.
 - Vertical (9:16) clip option for TikTok, Reels and Shorts.
@@ -74,7 +76,7 @@ Capacitor first, because it reuses everything already built and keeps the web ve
 
 ## Decisions to make
 
-Decided: the name, Skyloom (see [Name](#name)).
+Decided: the name, Skyloom (see [Name](#name)), and that Skyloom mixes with other apps' audio instead of stopping it (see milestone 1, T2).
 
 These are open and don't block milestone 1:
 

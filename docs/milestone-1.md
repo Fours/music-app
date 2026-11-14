@@ -34,7 +34,7 @@ This is a spike. Fix only what's needed to measure something. Anything bigger be
 | Task | Status | Commit |
 | --- | --- | --- |
 | T1. Capacitor shell | Done | 20a5d6f |
-| T2. Audio basics on a device | In progress |  |
+| T2. Audio basics on a device | Done |  |
 | T3. Background playback | Not started |  |
 | T4. Performance and clips | Not started |  |
 | T5. Go/no-go record | Not started |  |
@@ -73,12 +73,19 @@ To see what the audio is doing, tap the Skyloom wordmark five times. A badge sho
 
 **Done when:**
 
-- [ ] Each case above has a result (works, breaks, or works with a known fix).
-- [ ] Anything broken has a proposed fix noted for milestone 2.
+- [x] Each case above has a result (works, breaks, or works with a known fix). Calls and Siri were skipped and are marked untested.
+- [x] Anything broken has a proposed fix noted for milestone 2.
 
 **Findings so far:**
 
 - **Leaving the app and coming back** (iPhone 14, iOS 27.2): sound played, but after going to the home screen and reopening the app it was silent. The iOS Simulator doesn't show this; audio resumes there. The likely cause is iOS stopping the web view's audio context when the app leaves the screen and not restarting it. `keepAudioAwake()` in `src/app/controller.ts` now restarts the context when the page is shown again or the context stops, falls back to the next tap if iOS refuses, and Play restarts it too. **Confirmed on the device:** sound comes back both when the app was left playing and when it was paused, sent to the home screen, reopened and played.
+- **Silent switch:** works. Skyloom keeps playing with the switch on silent, as the `playback` audio session should.
+- **Another app's audio:** works. Switching between Skyloom and another app playing audio behaves well. Skyloom and the other app stop each other, because the `playback` session doesn't mix, and Skyloom's sound comes back when you return to it.
+- **AirPods disconnected:** breaks. When the AirPods go back in the case, Skyloom carries on through the phone's speaker after about a second. iOS apps are expected to pause when headphones go away, so music doesn't suddenly play out loud. The web view gets no event for this. **Fix for milestone 2:** a small native plugin that listens for the audio route changing because the old output went away (`AVAudioSession.routeChangeNotification` with reason `oldDeviceUnavailable`) and tells the page to pause. Pausing sets `playing` to false, so `keepAudioAwake()` won't restart it. It's not yet known whether the one-second gap is WebKit restarting the audio by itself or `keepAudioAwake()` doing it. The badge's log would show which.
+- **Volume buttons:** work. They change Skyloom's volume.
+- **Phone call or FaceTime:** untested (skipped). Worth checking in milestone 2 alongside the interruption handling.
+- **Siri:** untested (skipped). Same.
+- **Mixing with other audio (decision):** Skyloom should mix in under other apps' audio, so people can play it under music or a podcast, instead of stopping them as it does now. The web view can't ask for this: `navigator.audioSession` offers `playback`, which doesn't mix, or `ambient`, which mixes but goes quiet with the silent switch. **For milestone 2:** set the iOS audio session natively to playback with the mix-with-others option. Two things to check then: whether WebKit keeps that setting or resets it when audio starts, and that a mixing app doesn't get the lock-screen Now Playing controls, so those and mixing may need to be a choice, for example a setting.
 
 ### T3. Background playback
 
