@@ -8,8 +8,9 @@
 // For each layer it cuts the chosen stretches of the recordings, moving each
 // cut to the quietest moment nearby (between waves, between crackles), joins
 // them with equal-power crossfades and folds the end back into the start so
-// the loop has no seam. Every texture is set to the same loudness, with peaks
-// limited, then encoded as stereo AAC.
+// the loop has no seam. A stretch can also have its loudest pops cut out, the
+// audio either side spliced back together. Every texture is set to the same
+// loudness, with peaks limited, then encoded as stereo AAC.
 //
 // AAC adds a few milliseconds of silence at the start and end of a file, and
 // browsers differ in whether they trim it. So each file carries PAD seconds of
@@ -47,8 +48,17 @@ const BITRATE = '128k'
  * `length` are in seconds; cuts may move by up to `nudge` seconds to land on a
  * quiet moment. `gainDb` balances layers within a texture. `release` is the
  * peak limiter's release in ms: short for fire, so a pop is clipped rather
- * than ducking the bed after it.
+ * than ducking the bed after it. `popsAbove` cuts out any pop in that stretch
+ * louder than that and splices the audio either side together. It's judged as
+ * the pop will be heard, after the gain and the limiter: the RMS of its loudest
+ * 50 ms, in dB relative to the limit (0 would be 50 ms pinned at the limit).
+ * That matters for fire: the limiter shaves a sharp crackle down to almost
+ * nothing but lets most of a broad thump through, whatever their levels in the
+ * recording.
  */
+/** Fire pops louder than this are cut; see `popsAbove` below. */
+const POPS_ABOVE = -17.5
+
 const TEXTURES = {
   rain: [{ name: 'rain', segments: [{ file: 'rain/rain-ambient.wav', start: 25, length: 60 }] }],
   // The first 30 s of this recording are clipped and sound different; skip them.
@@ -64,7 +74,9 @@ const TEXTURES = {
       release: 15,
       segments: [
         { file: 'embers/torch-fire.wav', start: 0.5, length: 19.5 },
-        { file: 'embers/fire-pops.wav', start: 0.5, length: 21.5 },
+        // This recording has a dozen broad thumps far louder, once limited, than
+        // anything in the torch recording; cut any more than ~2 dB over its loudest.
+        { file: 'embers/fire-pops.wav', start: 0.5, length: 21.5, popsAbove: POPS_ABOVE },
       ],
     },
   ],
@@ -142,7 +154,85 @@ function join2(a, b, n) {
   return out
 }
 
-function buildLayer({ segments, fade = 3, nudge = 2, gainDb = 0, release = 80 }) {
+/** Crossfade where a pop has been cut out: long enough not to click, short enough to keep nothing of the pop. */
+const SPLICE = 0.03
+
+/** RMS in dB of `len` frames of `x` from frame `at`. */
+function levelDb(x, at, len) {
+  let sum = 0
+  for (let i = at * CH; i < (at + len) * CH; i++) sum += x[i] * x[i]
+  return 10 * Math.log10(sum / (len * CH) + 1e-12)
+}
+
+/** The recording as it will be heard: through the layer's gain and limiter. For judging pops. */
+function heardAs(file, gainDb, release) {
+  const key = `${file} ${gainDb.toFixed(2)} ${release}`
+  if (!cache.has(key)) {
+    const x = load(file)
+    const af = `volume=${gainDb.toFixed(2)}dB,alimiter=limit=${PEAK_LIMIT}:attack=1:release=${release}:level=false:latency=1`
+    const out = run([...RAW, '-i', '-', '-af', af, ...RAW, '-'], Buffer.from(x.buffer)).stdout
+    cache.set(key, new Float32Array(out.buffer.slice(out.byteOffset, out.byteOffset + out.byteLength)))
+  }
+  return cache.get(key)
+}
+
+/** The loudest 50 ms between frames `from` and `to` of `heard`, in dB relative to the limit. */
+function loudestDb(heard, from, to) {
+  const win = Math.round(SR * 0.05)
+  let top = -Infinity
+  for (let f = from; f + win <= to; f += Math.round(SR * 0.005)) top = Math.max(top, levelDb(heard, f, win))
+  return top - 20 * Math.log10(PEAK_LIMIT)
+}
+
+/**
+ * Stretches of `x` between frames `from` and `to` holding a pop whose loudest
+ * 50 ms in `heard` (the same audio as it will be heard) passes `aboveDb`
+ * relative to the limit. Each runs from where the pop rises out of the bed
+ * around it to where its tail has died back down.
+ */
+function findPops(x, heard, from, to, aboveDb) {
+  const threshold = 20 * Math.log10(PEAK_LIMIT) + aboveDb
+  const short = Math.round(SR * 0.005)
+  const win = Math.round(SR * 0.05)
+  const regions = []
+  for (let f = from; f + win <= to; f += short) {
+    if (levelDb(heard, f, win) < threshold) continue
+    // The bed: median 5 ms level over the 3 s around the pop.
+    const around = []
+    for (let g = Math.max(0, f - SR * 1.5); g < Math.min(frames(x) - short, f + SR * 1.5); g += short) around.push(levelDb(x, g, short))
+    around.sort((a, b) => a - b)
+    const settled = around[around.length >> 1] + 10
+    const limit = Math.round(SR * 0.4)
+    let start = f
+    while (start > f - limit && levelDb(x, start - short, short) > settled) start -= short
+    let end = f + win
+    while (end < f + win + limit && levelDb(x, end, short) > settled) end += short
+    start = Math.max(from, start - Math.round(SR * 0.015))
+    end = Math.min(to, end + Math.round(SR * 0.04))
+    // A sliver between two pops is mostly pop; take it with them.
+    const last = regions[regions.length - 1]
+    if (last && start <= last[1] + SR * 0.1) last[1] = Math.max(last[1], end)
+    else regions.push([start, end])
+    f = end
+  }
+  return regions
+}
+
+/** Frames `from`–`to` of `x`, less the `cuts`, spliced together. */
+function excise(x, from, to, cuts) {
+  const n = Math.round(SPLICE * SR)
+  let out = null
+  let at = from
+  for (const [a, b] of [...cuts, [to, to]]) {
+    const piece = x.slice(at * CH, a * CH)
+    out = out ? join2(out, piece, n) : piece
+    at = b
+  }
+  return out
+}
+
+/** `gain`: the texture's final gain, which pop removal needs to judge pops as they'll be heard. */
+function buildLayer({ segments, fade = 3, nudge = 2, gainDb = 0, release = 80 }, gain) {
   const n = Math.round(fade * SR)
   let chain = null
   const cuts = []
@@ -151,9 +241,27 @@ function buildLayer({ segments, fade = 3, nudge = 2, gainDb = 0, release = 80 })
     const from = quietest(x, Math.round(s.start * SR), nudge)
     const to = quietest(x, from + Math.round(s.length * SR), nudge, frames(x) - Math.max(n, SR))
     if (to + n > frames(x)) throw new Error(`${s.file}: not enough audio after ${(to / SR).toFixed(1)} s`)
-    cuts.push(`${s.file} ${(from / SR).toFixed(2)}–${(to / SR).toFixed(2)} s`)
     // Each piece runs `fade` past its cut, to crossfade into whatever follows.
-    const piece = x.slice(from * CH, (to + n) * CH)
+    let note = ''
+    let pops = []
+    if (s.popsAbove !== undefined && gain !== undefined) {
+      const heard = heardAs(s.file, gain + gainDb, release)
+      pops = findPops(x, heard, from, to + n, s.popsAbove)
+      // The loudest of what's left, to judge `popsAbove` by.
+      let kept = -Infinity
+      let at = from
+      for (const [a, b] of [...pops, [to + n, to + n]]) {
+        kept = Math.max(kept, loudestDb(heard, at, a))
+        at = b
+      }
+      const list = pops.map(([a, b]) => `${(a / SR).toFixed(2)}–${(b / SR).toFixed(2)}`).join(', ')
+      note = `, less ${pops.length} pops (${list} s); loudest left ${kept.toFixed(1)} dB`
+    } else if (gain !== undefined) {
+      const heard = heardAs(s.file, gain + gainDb, release)
+      note = `; loudest ${loudestDb(heard, from, to + n).toFixed(1)} dB`
+    }
+    const piece = excise(x, from, to + n, pops)
+    cuts.push(`${s.file} ${(from / SR).toFixed(2)}–${(to / SR).toFixed(2)} s${note}`)
     chain = chain ? join2(chain, piece, n) : piece
   }
   // Fold the overhang back over the start, so the end runs into the beginning.
@@ -205,14 +313,12 @@ function mixOf(layers) {
   return mix
 }
 
-// ---------------------------------------------------------------- main
-
-mkdirSync(OUT, { recursive: true })
-const manifest = {}
-for (const [texture, layers] of Object.entries(TEXTURES)) {
-  const built = layers.map((l) => ({ ...buildLayer(l), name: l.name }))
-  const target = TARGET_OVERRIDE[texture] ?? TARGET_LUFS
-  // Limiting takes some loudness off the peaks, so measure after it and correct.
+/**
+ * The gain that brings the layers, mixed and limited, to `target` LUFS, and the
+ * limited layers. Limiting takes some loudness off the peaks, so it measures
+ * after limiting and corrects.
+ */
+function level(built, target) {
   let gain = target - loudness(mixOf(built.map((b) => ({ loop: b.loop.map((v) => v * 10 ** (b.gainDb / 20)), len: b.len }))))
   let done
   for (let pass = 0; pass < 4; pass++) {
@@ -220,6 +326,28 @@ for (const [texture, layers] of Object.entries(TEXTURES)) {
     const miss = target - loudness(mixOf(done))
     if (Math.abs(miss) < 0.2) break
     gain += miss
+  }
+  return { gain, done }
+}
+
+// ---------------------------------------------------------------- main
+
+mkdirSync(OUT, { recursive: true })
+const manifest = {}
+for (const [texture, layers] of Object.entries(TEXTURES)) {
+  const target = TARGET_OVERRIDE[texture] ?? TARGET_LUFS
+  // Pops are judged as they'll be heard, which depends on the final gain, and
+  // cutting them changes the gain, so settle the two together.
+  let built = layers.map((l) => ({ ...buildLayer(l), name: l.name }))
+  let { gain, done } = level(built, target)
+  if (layers.some((l) => l.segments.some((s) => s.popsAbove !== undefined))) {
+    for (let pass = 0; pass < 6; pass++) {
+      built = layers.map((l) => ({ ...buildLayer(l, gain), name: l.name }))
+      const next = level(built, target)
+      const settled = Math.abs(next.gain - gain) < 0.1
+      ;({ gain, done } = next)
+      if (settled) break
+    }
   }
   manifest[texture] = []
   for (const [k, b] of built.entries()) {

@@ -39,7 +39,7 @@ export const TEXTURE_LOOPS: Record<string, TextureLoop[]> = {
     {
       file: 'embers-crackle.m4a',
       start: 0.5,
-      length: 39.05
+      length: 34.525
     }
   ]
 }
