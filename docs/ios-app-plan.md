@@ -39,22 +39,32 @@ Capacitor first, because it reuses everything already built and keeps the web ve
 
 | # | Milestone | Status |
 | --- | --- | --- |
-| 1 | Spike: Capacitor shell, audio on a real device, background playback, performance, go/no-go | In progress (T1–T4 done) — [spec](milestone-1.md) |
+| 1 | Spike: Capacitor shell, audio on a real device, background playback, performance, go/no-go | Done: go with Capacitor ([decision](decisions/0001-capacitor-for-ios.md)) — [spec](milestone-1.md) |
 | 2 | Native fit: rename to Skyloom, share sheet, audio session and interruptions, lock-screen controls, durable saves, safe areas, icon and splash, vertical clips | Not started |
 | 3 | App Store ready: developer account, name, screenshots and preview, privacy policy and label, TestFlight beta, submission | Not started |
 | 4 | Launch: landing page, featuring nomination, community launch, short videos, App Store keywords, review of results | Not started |
 
 ### 2. Native fit (outline)
 
+Milestone 1 found the audio engine solid and the drawing and audio lifecycle weak (see the [decision record](decisions/0001-capacitor-for-ios.md)). Start with the first two items: they decide whether the rest is worth building on.
+
+- **Drawing cost and heat.** First measure CPU and energy in Xcode's Debug navigator with the stress scene playing, screen on and then locked (locked is the audio alone). Then cap drawing at 30 fps, since the motion is slow; make the glows cheaper (fewer radial gradients, or draw each glow once to an offscreen canvas and reuse it); and drop the `backdrop-filter` blur over the canvas. If audio turns out to dominate, lower the object limits on phones. Target: a 7-object scene for 30 minutes without the phone getting hot, and 30 fps steady with 18 objects.
+- **Audio recovery after interruptions.** After unplugging from Xcode and switching apps, Play once did nothing: no sound and no animation, because the simulation runs on the audio clock and the context stayed stopped. Reproduce it with the debug badge on to see the context's state. The likely fix goes with the native audio session below: listen for `AVAudioSession.interruptionNotification`, reactivate the session when the interruption ends or the app returns to the foreground, then resume the page's audio. Also give `engine.wake()` a timeout, since `resume()` can wait indefinitely, and tell the user when audio is blocked instead of doing nothing.
+
 - Rename the app to Skyloom: the wordmark, page title, welcome screen, clip watermark, README, and the names of downloaded recordings and clips. Keep the `drift:scene` storage key, or migrate it, so existing saved scenes still load.
 - Share sheet for WAV recordings and video clips (`@capacitor/share` and `@capacitor/filesystem`). Download links don't work in a WKWebView.
 - Audio session set natively to playback with mix-with-others, so Skyloom can play under music or podcasts (decided in milestone 1, T2). Check that WebKit doesn't reset it.
 - Pause when headphones or AirPods disconnect, through a small native plugin for the route change. Today it carries on through the speaker.
 - Handle interruptions: test calls and Siri, which were skipped in T2.
+- Retest background playback once the session mixes with other audio, with the app on the home screen as well as locked, and measure battery over a long session.
 - Lock-screen and Control Center controls (play and pause, scene name). Milestone 1 (T3) showed background playback works: 11 minutes locked with no dropouts and steady timing. iOS doesn't give these to apps that mix with other audio, so this may become a setting together with mixing.
 - Move the autosave from `localStorage` to `@capacitor/preferences`, since iOS can clear web storage when space is low.
 - Safe areas, status bar, app icon, splash screen, and a light haptic tap on placing objects.
 - Vertical (9:16) clip option for TikTok, Reels and Shorts.
+- Clips on phones draw only about 25 of 30 frames a second: record at a lower resolution (for example 720×1560) or at 24 fps. Keep the 8-second stop timeout, and watch for the "Saving…" hang that happened once when the phone was hot.
+- Encode WAV recordings in a worker. Today the conversion stalls the main thread for about 0.2 s, enough for a few late notes.
+- If a playback preview stays before the share sheet, pause the scene while it plays and resume when it closes, and show the first frame instead of black.
+- Remove the temporary in-app preview's "Saving to Photos and Files is coming" note once the share sheet is in.
 - Keep the web build working, with native code behind a `Capacitor.isNativePlatform()` check.
 
 ### 3. App Store ready (outline)
@@ -62,7 +72,7 @@ Capacitor first, because it reuses everything already built and keeps the web ve
 - Apple Developer Program ($99 a year) and the bundle ID. Reserve "Skyloom: Ambient Music Maker" in App Store Connect as soon as the account exists.
 - Screenshots for the required iPhone and iPad sizes, and an app preview video made with Clip.
 - Privacy policy page and the App Privacy label. With no analytics or accounts, "no data collected" may be possible, which reviewers and users both like.
-- TestFlight beta with 10–20 people, ideally from the iOS music community.
+- TestFlight beta with 10–20 people, ideally from the iOS music community. Include at least one iPhone XS or XR and one 6th-generation iPad, the oldest devices iOS 17 supports, since only an iPhone 14 has been tested.
 - Review notes that point out what's native (audio session, share sheet, lock-screen controls), because Apple rejects apps that are "just a website" (guideline 4.2).
 
 ### 4. Launch (outline)
@@ -76,15 +86,14 @@ Capacitor first, because it reuses everything already built and keeps the web ve
 
 ## Decisions to make
 
-Decided: the name, Skyloom (see [Name](#name)), and that Skyloom mixes with other apps' audio instead of stopping it (see milestone 1, T2).
+Decided: the name, Skyloom (see [Name](#name)); that Skyloom mixes with other apps' audio instead of stopping it (see milestone 1, T2); Capacitor (see [0001](decisions/0001-capacitor-for-ios.md)); and iOS 17 as the minimum version, set in the Xcode project (same record).
 
-These are open and don't block milestone 1:
+Still open:
 
 1. **Price:** free, paid up front ($3–5), or free with a one-time unlock (for example extra scenes or longer clips). Subscriptions only make sense with a stream of new content.
-2. **Minimum iOS version.** Milestone 1 should show which WebKit features the app needs.
-3. **Analytics** in the app or not. PostHog is the usual choice for web projects, but leaving it out keeps the privacy label clean.
+2. **Analytics** in the app or not. PostHog is the usual choice for web projects, but leaving it out keeps the privacy label clean.
 
 ## Prerequisites
 
-- Full Xcode from the Mac App Store. Only the command-line tools are installed at the moment, which can't build iOS apps.
+- Full Xcode from the Mac App Store (installed: Xcode 26.6 with the iOS 26.5 simulator).
 - A real iPhone or iPad for testing. The simulator can't show audio-session behaviour, background playback or real performance. A free Apple ID can install on your own device for 7 days at a time. The paid program is only needed for TestFlight and the App Store.

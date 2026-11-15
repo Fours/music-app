@@ -36,8 +36,8 @@ This is a spike. Fix only what's needed to measure something. Anything bigger be
 | T1. Capacitor shell | Done | 20a5d6f |
 | T2. Audio basics on a device | Done | 35d89eb |
 | T3. Background playback | Done | 22c3f6c |
-| T4. Performance and clips | Done |  |
-| T5. Go/no-go record | Not started |  |
+| T4. Performance and clips | Done | bb8399c |
+| T5. Go/no-go record | Done |  |
 
 ### T1. Capacitor shell
 
@@ -83,6 +83,7 @@ To see what the audio is doing, tap the Skyloom wordmark five times. A badge sho
 - **Another app's audio:** works. Switching between Skyloom and another app playing audio behaves well. Skyloom and the other app stop each other, because the `playback` session doesn't mix, and Skyloom's sound comes back when you return to it.
 - **AirPods disconnected:** breaks. When the AirPods go back in the case, Skyloom carries on through the phone's speaker after about a second. iOS apps are expected to pause when headphones go away, so music doesn't suddenly play out loud. The web view gets no event for this. **Fix for milestone 2:** a small native plugin that listens for the audio route changing because the old output went away (`AVAudioSession.routeChangeNotification` with reason `oldDeviceUnavailable`) and tells the page to pause. Pausing sets `playing` to false, so `keepAudioAwake()` won't restart it. It's not yet known whether the one-second gap is WebKit restarting the audio by itself or `keepAudioAwake()` doing it. The badge's log would show which.
 - **Volume buttons:** work. They change Skyloom's volume.
+- **Switching apps after unplugging** (reported after T4): with the app open while the phone charged, then unplugged, then several app switches, Play did nothing on return, with no sound and no animation. The animation runs on the audio clock once music has started, so the audio context stayed stopped. Not reproduced yet; the fix is planned with the native audio session in milestone 2.
 - **Phone call or FaceTime:** untested (skipped). Worth checking in milestone 2 alongside the interruption handling.
 - **Siri:** untested (skipped). Same.
 - **Mixing with other audio (decision):** Skyloom should mix in under other apps' audio, so people can play it under music or a podcast, instead of stopping them as it does now. The web view can't ask for this: `navigator.audioSession` offers `playback`, which doesn't mix, or `ambient`, which mixes but goes quiet with the silent switch. **For milestone 2:** set the iOS audio session natively to playback with the mix-with-others option. Two things to check then: whether WebKit keeps that setting or resets it when audio starts, and that a mixing app doesn't get the lock-screen Now Playing controls, so those and mixing may need to be a choice, for example a setting.
@@ -161,11 +162,13 @@ Write `docs/decisions/0001-capacitor-for-ios.md`: the context, the decision, the
 
 **Done when:**
 
-- [ ] The record says go or no-go on Capacitor, with the evidence.
-- [ ] It names the minimum iOS version and the oldest supported device.
-- [ ] The milestone 2 outline in the plan is updated with anything the spike found.
+- [x] The record says go or no-go on Capacitor, with the evidence.
+- [x] It names the minimum iOS version and the oldest supported device.
+- [x] The milestone 2 outline in the plan is updated with anything the spike found.
+
+**Result:** [0001: Capacitor for the iOS app](decisions/0001-capacitor-for-ios.md) says **go**. The minimum is iOS 17, now set as the deployment target in the Xcode project (it was 15.0, below the Safari 16.4 that Vite builds for). The oldest supported devices are the iPhone XS and XR and the 6th-generation iPad; only the iPhone 14 is tested.
 
 ## Definition of done
 
-- [ ] All tasks are Done.
-- [ ] The milestone table in [ios-app-plan.md](ios-app-plan.md) is updated.
+- [x] All tasks are Done.
+- [x] The milestone table in [ios-app-plan.md](ios-app-plan.md) is updated.
