@@ -36,7 +36,7 @@ This is a spike. Fix only what's needed to measure something. Anything bigger be
 | T1. Capacitor shell | Done | 20a5d6f |
 | T2. Audio basics on a device | Done | 35d89eb |
 | T3. Background playback | Done | 22c3f6c |
-| T4. Performance and clips | In progress |  |
+| T4. Performance and clips | Done |  |
 | T5. Go/no-go record | Not started |  |
 
 ### T1. Capacitor shell
@@ -117,7 +117,7 @@ The only device is an iPhone 14 (A15, 60 Hz screen, iOS 27.2), so it's the basel
 
 **How to measure:**
 
-- The debug badge has two blue lines. The first is frames: the current frame rate, how many 60 Hz frames were dropped out of all frames, and the slowest single frame. The second is audio timing: how many 25 ms simulation steps ran after their notes were due (each is a likely click or late note), the longest gap between steps, the object count, and how long the counts have run. Tap the badge to restart the counts, for example once a scene has loaded.
+- The debug badge has two blue lines. The first is frames: the frame rate over the last second, the average since the counts started (and what share of 60 that is), and the slowest single frame. The second is audio timing: how many 25 ms simulation steps ran after their notes were due (each is a likely click or late note), the longest gap between steps, the object count, and how long the counts have run. Tap the badge to restart the counts, for example once a scene has loaded.
 - In the iOS app, finishing a clip or a recording opens a preview that plays it and lists the format, size, length, resolution and, for clips, how many frames were drawn out of the 30 per second expected. Download links do nothing in a WKWebView, so this stands in until the share sheet in milestone 2. The web build still downloads.
 
 **Runs:**
@@ -130,9 +130,30 @@ The only device is an iPhone 14 (A15, 60 Hz screen, iOS 27.2), so it's the basel
 
 **Done when:**
 
-- [ ] Frame rate and any audio dropouts are noted for the busiest scene.
-- [ ] A 30-second clip records on the device, and its format and smoothness are noted.
-- [ ] Any fix needed (lower clip resolution, fewer effects on older devices) is noted for milestone 2.
+- [x] Frame rate and any audio dropouts are noted for the busiest scene.
+- [x] A 30-second clip records on the device, and its format and smoothness are noted.
+- [x] Any fix needed (lower clip resolution, fewer effects on older devices) is noted for milestone 2.
+
+**Findings** (iPhone 14, iOS 27.2):
+
+| Run | Objects | Time | Frames | Audio timing |
+| --- | --- | --- | --- | --- |
+| 1. Rain on Glass | 7 | 5:05 | 53.5 fps average (16,329 frames), slowest 26 ms | 0 late of 12,207 steps, longest gap 0.07 s |
+| 2. Stress | 18 | 2:02 | 47 fps average (5,778 frames), slowest 35 ms | 0 late of 4,898 steps, longest gap 0.07 s |
+
+- **Audio holds up.** No step ran late in either run, even with 18 objects, and the longest gap between steps matched the simulator's. The audio side of the web view has room to spare.
+- **Drawing falls short of 60 fps and gets slower with more objects:** about 89% of 60 with 7 objects and 79% with 18. The slowest frames stayed under 40 ms, so there are no freezes, just less smooth motion. The first version of the badge counted only 1 dropped frame in run 1, because frames arrived every 18–26 ms and each rounded to a single frame. It now compares frames drawn with the time they span.
+- **The phone got very hot in the stress run.** It was charging and had already been playing for 7 minutes, which adds to it, but heat matters for an app meant to play for a long time: it drains the battery, and iOS slows down hot apps. The likely costs are the drawing (each object's large soft radial-gradient glows, many blended with `multiply`, and the `backdrop-filter` blur on the tray and top bar, which has to be redone every frame over a moving canvas) and the audio (18 synths plus reverb). The split wasn't measured; see milestone 2 below.
+- **Clip:** the first try stuck on "Saving…" because the recorder never fired its `stop` event. The phone was hot from the earlier runs, which may be why. Stopping now gives up after 8 seconds and says why, and a recorder that fails or stops early is reported in the preview. The second try, with the phone cool and unplugged, worked: 32.8 seconds of Rain on Glass as MP4 (H.264 and AAC, `avc1.640028`), 888×1920, 11.4 MB (about 2.8 Mbps; the encoder used far less than the 8 Mbps allowed, since the scene moves slowly). 819 of 984 frames were drawn, so the clip runs at about 25 fps instead of 30. Played back in the preview it looked smooth, with the sound in sync.
+- **Audio recording:** a 31-second recording came out as a 6.0 MB WAV and played back correctly. Stopping it caused one 206 ms frame and 5 late steps: converting to WAV runs on the main thread for longer than Tone's 120 ms of look-ahead, so the scene may click once at that moment. The recording itself isn't affected. The same run showed an 8-second gap in the simulation that wasn't explained (most likely a pause and play).
+- **Not tested:** older devices (none available) and the CPU split between drawing and audio.
+
+**For milestone 2:**
+
+- **Heat and frame rate:** measure CPU and energy in Xcode's Debug navigator with the screen on and with it locked (locked is audio alone), then: cap drawing at 30 fps, since the motion is slow; make the glows cheaper (fewer gradients, or draw each glow once to an offscreen canvas and reuse it); drop `backdrop-filter` over the canvas; and if audio turns out to dominate, lower the object limits on phones.
+- **Clips:** lower the clip resolution on phones (for example 720×1560) or record at 24 fps so drawing keeps up. Keep the stop timeout, and find out whether the hang comes back.
+- **Recordings:** encode the WAV in a worker so stopping doesn't stall the music.
+- **Preview:** pause the scene while a recording or clip plays back, and resume when it closes. With the share sheet, playback may move out of the app entirely. The video preview is black until you press play; show the first frame.
 
 ### T5. Go/no-go record
 

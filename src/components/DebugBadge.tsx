@@ -39,13 +39,14 @@ export function DebugBadge() {
     }
     // The engine swaps in its own context when it starts, so follow whichever is current.
     let ctx: BaseAudioContext | null = null
-    // Frames: count each animation frame, and how many 60 Hz frames were missed between two.
-    let run = { since: 0, frames: 0, dropped: 0, worst: 0, ticks: 0, late: 0 }
+    // Frames: count animation frames against the time they span. Counting misses per frame
+    // undercounts on devices whose frames arrive every 18–26 ms rather than in whole 16.7 ms steps.
+    let run = { since: 0, frames: 0, span: 0, worst: 0, ticks: 0, late: 0 }
     const recent: number[] = []
     let lastFrame = 0
     let raf = 0
     reset.current = () => {
-      run = { since: performance.now(), frames: 0, dropped: 0, worst: 0, ticks: app.ticks, late: app.lateTicks }
+      run = { since: performance.now(), frames: 0, span: 0, worst: 0, ticks: app.ticks, late: app.lateTicks }
       app.maxTickGap = 0
       lastFrame = 0
     }
@@ -55,7 +56,7 @@ export function DebugBadge() {
       // A gap over a second means the page was hidden, not that frames dropped.
       if (lastFrame && dt < 1000) {
         run.frames++
-        run.dropped += Math.max(0, Math.round(dt / FRAME_MS) - 1)
+        run.span += dt
         run.worst = Math.max(run.worst, dt)
       }
       lastFrame = ms
@@ -65,11 +66,11 @@ export function DebugBadge() {
     }
     raf = requestAnimationFrame(onFrame)
     const showPerf = () => {
-      const drawn = run.frames + run.dropped
-      const pct = drawn ? ((run.dropped / drawn) * 100).toFixed(1) : '0.0'
+      const avg = run.span ? (run.frames * 1000) / run.span : 0
+      const ofTarget = Math.round((avg * FRAME_MS * 100) / 1000)
       const ticks = app.ticks - run.ticks
       setPerf([
-        `fps ${recent.length} · dropped ${run.dropped} of ${drawn} (${pct}%) · worst ${Math.round(run.worst)} ms`,
+        `fps ${recent.length} now · ${avg.toFixed(1)} avg (${ofTarget}% of 60) · worst ${Math.round(run.worst)} ms`,
         `late ticks ${app.lateTicks - run.late} of ${ticks} · max gap ${(app.maxTickGap / 1000).toFixed(2)} s · ` +
           `${app.world.objects.length} objects · ${mmss((performance.now() - run.since) / 1000)}`,
       ])

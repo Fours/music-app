@@ -39,7 +39,7 @@ Capacitor first, because it reuses everything already built and keeps the web ve
 
 | # | Milestone | Status |
 | --- | --- | --- |
-| 1 | Spike: Capacitor shell, audio on a real device, background playback, performance, go/no-go | In progress (T1–T3 done) — [spec](milestone-1.md) |
+| 1 | Spike: Capacitor shell, audio on a real device, background playback, performance, go/no-go | In progress (T1–T4 done) — [spec](milestone-1.md) |
 | 2 | Native fit: rename to Skyloom, share sheet, audio session and interruptions, lock-screen controls, durable saves, safe areas, icon and splash, vertical clips | Not started |
 | 3 | App Store ready: developer account, name, screenshots and preview, privacy policy and label, TestFlight beta, submission | Not started |
 | 4 | Launch: landing page, featuring nomination, community launch, short videos, App Store keywords, review of results | Not started |
