@@ -26,6 +26,7 @@ export function ClipPreview() {
     meta && `plays ${seconds(meta.seconds)}`,
     meta?.size ?? (f && `${f.width}×${f.height}`),
     f && `${f.drawn} of ${f.expected} frames drawn`,
+    preview.problem,
   ].filter(Boolean)
 
   return (
@@ -44,8 +45,7 @@ export function ClipPreview() {
         </div>
         {isClip ? (
           <video
-            // Starting just past zero makes iOS show the first frame instead of a black box.
-            src={`${preview.url}#t=0.001`}
+            src={preview.url}
             controls
             playsInline
             onLoadedMetadata={(e) => {

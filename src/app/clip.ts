@@ -8,6 +8,8 @@
  */
 
 const FPS = 30
+/** How long to wait for the recorder to hand over the last data before giving up (ms). */
+const STOP_TIMEOUT = 8000
 /** The clip fits inside 1920 × 1080 (or 1080 × 1920 when the window is tall). */
 const LONG = 1920
 const SHORT = 1080
@@ -41,6 +43,11 @@ export class ClipRecorder {
   /** Frames painted into the clip, and when recording started (ms), to check against FPS. */
   frames = 0
   private startedAt = 0
+  /** What went wrong, if the recorder failed or stopped by itself. Shown in the preview or the error. */
+  problem: string | null = null
+  private stopping = false
+  /** The recorder's `stop` event has fired, so all its data has arrived. */
+  private ended = false
 
   /** `width` and `height` are the stage size in CSS pixels; the clip keeps its shape. */
   constructor(audio: MediaStream, width: number, height: number, type: string) {
@@ -63,6 +70,20 @@ export class ClipRecorder {
     this.recorder.ondataavailable = (e) => {
       if (e.data.size > 0) this.chunks.push(e.data)
     }
+    // Listen from the start: if the encoder fails mid-clip, stop() must not wait for an event that never comes.
+    this.recorder.addEventListener('error', (e) => {
+      const err = (e as Event & { error?: DOMException }).error
+      this.problem = `recorder error: ${err ? `${err.name} ${err.message}` : 'unknown'}`
+      console.error(this.problem)
+    })
+    this.recorder.addEventListener('stop', () => {
+      this.ended = true
+      if (!this.stopping) this.problem ??= `recorder stopped by itself after ${this.elapsed().toFixed(1)} s`
+    })
+  }
+
+  private elapsed() {
+    return (performance.now() - this.startedAt) / 1000
   }
 
   start() {
@@ -100,17 +121,35 @@ export class ClipRecorder {
     drawWatermark(ctx, canvas.width, canvas.height)
   }
 
+  /**
+   * Resolves with whatever the recorder produced. Gives up after STOP_TIMEOUT,
+   * since WebKit doesn't always fire `stop`, and a hung promise left the
+   * Clip button stuck on "Saving…".
+   */
   stop(): Promise<Blob> {
+    this.stopping = true
     return new Promise((resolve, reject) => {
-      this.recorder.onstop = () => {
+      let done = false
+      const finish = (why?: string) => {
+        if (done) return
+        done = true
+        window.clearTimeout(timer)
         this.release()
-        resolve(new Blob(this.chunks, { type: this.type.split(';')[0] }))
+        if (why) this.problem ??= why
+        const bytes = this.chunks.reduce((n, c) => n + c.size, 0)
+        if (bytes > 0) resolve(new Blob(this.chunks, { type: this.type.split(';')[0] }))
+        else reject(new Error(`${this.problem ?? 'no video data'} (${this.frames} frames drawn, state ${this.recorder.state})`))
       }
-      this.recorder.onerror = () => {
-        this.release()
-        reject(new Error('Clip recording failed'))
+      const timer = window.setTimeout(() => finish(`no stop event after ${STOP_TIMEOUT / 1000} s`), STOP_TIMEOUT)
+      if (this.ended) return finish()
+      this.recorder.addEventListener('stop', () => finish(), { once: true })
+      // Already stopped but its last data and `stop` event are still on the way.
+      if (this.recorder.state === 'inactive') return
+      try {
+        this.recorder.stop()
+      } catch (err) {
+        finish(`stop failed: ${String(err)}`)
       }
-      this.recorder.stop()
     })
   }
 

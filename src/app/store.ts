@@ -21,6 +21,8 @@ export interface Preview {
   seconds: number
   /** Clips only: frames painted, and how many a steady 30 fps would give. */
   frames?: { drawn: number; expected: number; width: number; height: number }
+  /** Clips only: what went wrong, if the recorder failed or stopped early but left some video. */
+  problem?: string | null
 }
 
 export interface UIState {

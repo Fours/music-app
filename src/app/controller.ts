@@ -353,12 +353,15 @@ export class Controller {
           kind: 'video',
           seconds: (Date.now() - capture.since) / 1000,
           frames,
+          problem: clip.problem,
           type: clip.type,
         })
       }
     } catch (err) {
       console.error(err)
-      this.toast(`Sorry, that ${capture.kind === 'audio' ? 'recording' : 'clip'} could not be saved`)
+      // While the app is being tested on devices, say why, so a failure can be reported.
+      const why = err instanceof Error ? `: ${err.message}` : ''
+      this.toast(`Sorry, that ${capture.kind === 'audio' ? 'recording' : 'clip'} could not be saved${why}`, why ? 10000 : 3800)
     } finally {
       this.ui.set({ capture: null })
     }
@@ -368,7 +371,7 @@ export class Controller {
    * Download links do nothing inside the iOS app, so there the recording opens
    * in a preview instead. Milestone 2 replaces this with the share sheet.
    */
-  private deliver(blob: Blob, name: string, info: Pick<Preview, 'kind' | 'seconds' | 'frames'> & { type?: string }) {
+  private deliver(blob: Blob, name: string, info: Pick<Preview, 'kind' | 'seconds' | 'frames' | 'problem'> & { type?: string }) {
     if (!Capacitor.isNativePlatform()) return this.download(blob, name)
     this.closePreview()
     const url = URL.createObjectURL(blob)
@@ -393,10 +396,10 @@ export class Controller {
     this.toast(`Saved ${name}`)
   }
 
-  toast(text: string) {
+  toast(text: string, ms = 3800) {
     window.clearTimeout(this.toastTimer)
     this.ui.set({ toast: { id: Date.now(), text } })
-    this.toastTimer = window.setTimeout(() => this.ui.set({ toast: null }), 3800)
+    this.toastTimer = window.setTimeout(() => this.ui.set({ toast: null }), ms)
   }
 }
 
