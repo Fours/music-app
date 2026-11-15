@@ -38,13 +38,16 @@ export class AudioEngine {
   /** The master output as a MediaStream, for video clips. */
   stream!: MediaStreamAudioDestinationNode
   private meter!: Tone.Meter
+  /** Decoded samples, kept so a rebuilt engine doesn't fetch and decode them again. */
+  private samples: Record<string, Tone.ToneAudioBuffer> = {}
 
   async init(onProgress?: (p: number) => void) {
     // Prefer stable playback over low latency; nothing here is played live.
     const nav = navigator as Navigator & { audioSession?: { type: string } }
     if (nav.audioSession) nav.audioSession.type = 'playback' // iOS: ignore the mute switch
     Tone.setContext(new Tone.Context({ latencyHint: 'playback', lookAhead: 0.12 }))
-    await Tone.start()
+    // Outside a tap (a rebuild), iOS may leave this pending; the next tap starts it instead.
+    await settle(Tone.start(), 2000)
 
     this.recorder = new Tone.Recorder()
     this.meter = new Tone.Meter({ normalRange: true, smoothing: 0.85 })
@@ -73,11 +76,11 @@ export class AudioEngine {
     delayTone.connect(mix)
 
     let done = 0
-    const buffers: Record<string, Tone.ToneAudioBuffer> = {}
+    const buffers = this.samples
     await Promise.all([
       reverb.ready,
       ...SAMPLES.map(async (file) => {
-        buffers[file] = await loadSample(`${import.meta.env.BASE_URL}samples/${file}`)
+        buffers[file] ??= await loadSample(`${import.meta.env.BASE_URL}samples/${file}`)
         onProgress?.(++done / SAMPLES.length)
       }),
     ])
@@ -148,11 +151,48 @@ export class AudioEngine {
     // WebKit also has a non-standard 'interrupted' state, which resume() clears too.
     if (ctx.state === 'running') return true
     try {
-      await ctx.resume()
+      // resume() can stay pending while iOS holds the audio, so don't wait on it forever.
+      await Promise.race([ctx.resume(), sleep(1500)])
     } catch (err) {
       console.warn(`Audio could not resume from '${ctx.state}': ${String(err)}`)
     }
     return (ctx.state as string) === 'running'
+  }
+
+  /**
+   * For a context that says it's running but whose clock has stopped, which
+   * happens on iOS after some interruptions. Suspends and resumes it, and
+   * returns whether the clock moves again.
+   */
+  async kick(): Promise<boolean> {
+    const ctx = Tone.getContext().rawContext as AudioContext
+    const before = ctx.currentTime
+    await settle(ctx.suspend(), 1000)
+    await settle(ctx.resume(), 1000)
+    await sleep(600)
+    return ctx.state === 'running' && ctx.currentTime > before
+  }
+
+  /**
+   * Replaces the audio context and every node in it, for when kick() doesn't
+   * bring the clock back. The caller reconnects the simulation afterwards.
+   * Outside a tap the new context may start suspended, so wake() it on the next tap.
+   */
+  async rebuild() {
+    const old = Tone.getContext()
+    this.ready = false
+    // The voices belong to the old context and go with it.
+    this.slots.clear()
+    old.transport.stop()
+    old.transport.cancel(0)
+    await this.init()
+    try {
+      old.dispose()
+      const raw = old.rawContext as AudioContext
+      if (raw.state !== 'closed') void raw.close().catch(() => {})
+    } catch (err) {
+      console.warn(`Old audio context did not close cleanly: ${String(err)}`)
+    }
   }
 
   /** The underlying Web Audio context. */
@@ -180,6 +220,15 @@ export class AudioEngine {
 }
 
 export const engine = new AudioEngine()
+
+const sleep = (ms: number) => new Promise<void>((r) => window.setTimeout(r, ms))
+
+/** Waits for a promise to settle, but no longer than `ms`. Errors are ignored. */
+const settle = (p: Promise<unknown>, ms: number) =>
+  Promise.race([p.then(
+    () => {},
+    () => {},
+  ), sleep(ms)])
 
 /**
  * Fetches and decodes an audio file. This replaces Tone's own loader, which

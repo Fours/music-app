@@ -7,6 +7,7 @@ import { harmonyOf } from '../world/pitch'
 import { PRESETS } from '../world/presets'
 import { World } from '../world/sim'
 import { LIMITS, type Kind, type Scene, type Settings, type WorldObject } from '../world/types'
+import { noteAudio } from './audio-log'
 import { ClipRecorder, clipType } from './clip'
 import { createStore, type CaptureKind, type Preview, type UIState } from './store'
 
@@ -101,6 +102,16 @@ export class Controller {
       this.toast('Your browser blocked audio. Try again?')
       return
     }
+    this.connectAudio(true)
+    this.ui.set({ phase: 'running', playing: true })
+    this.keepAudioAwake()
+  }
+
+  /**
+   * Hooks the simulation up to the current audio context: at the start, and
+   * again after the engine is rebuilt with a new context.
+   */
+  private connectAudio(playing: boolean) {
     engine.applySettings(this.settings)
     engine.sync(this.world.objects, harmonyOf(this.settings), Tone.now(), this.live)
     // Events stamped on the old clock would flash forever; reset them.
@@ -112,12 +123,13 @@ export class Controller {
     }
     const transport = Tone.getTransport()
     transport.scheduleRepeat((time) => this.tick(time), TICK)
-    transport.start('+0.05')
+    if (playing) transport.start('+0.05')
     this.audioDriven = true
-    engine.setPaused(false, this.settings.volume)
-    this.ui.set({ phase: 'running', playing: true })
-    this.keepAudioAwake()
+    engine.setPaused(!playing, this.settings.volume)
+    Tone.getContext().rawContext.addEventListener('statechange', this.wake)
   }
+
+  private waitingForTap = false
 
   /**
    * iOS stops the audio when the app leaves the screen and may not restart it
@@ -125,21 +137,83 @@ export class Controller {
    * Restart it whenever the page is shown again or the context stops. If the
    * system only allows that from a touch, do it on the next tap.
    */
-  private keepAudioAwake() {
-    let waitingForTap = false
-    const wake = async () => {
-      if (document.visibilityState !== 'visible' || !this.ui.get().playing) return
-      if ((await engine.wake()) || waitingForTap) return
-      waitingForTap = true
-      const onTap = () => {
-        waitingForTap = false
-        void engine.wake()
-      }
-      window.addEventListener('pointerdown', onTap, { once: true, capture: true })
+  private wake = async () => {
+    if (document.visibilityState !== 'visible' || !this.ui.get().playing) return
+    if ((await engine.wake()) || this.waitingForTap) return
+    this.waitingForTap = true
+    const onTap = () => {
+      this.waitingForTap = false
+      void engine.wake()
     }
-    document.addEventListener('visibilitychange', wake)
-    window.addEventListener('pageshow', wake)
-    Tone.getContext().rawContext.addEventListener('statechange', wake)
+    window.addEventListener('pointerdown', onTap, { once: true, capture: true })
+  }
+
+  private keepAudioAwake() {
+    document.addEventListener('visibilitychange', this.wake)
+    window.addEventListener('pageshow', this.wake)
+    this.watchAudioClock()
+  }
+
+  /**
+   * After some interruptions iOS reports the context as running while its
+   * clock stands still: no sound, and no animation, since the simulation runs
+   * on that clock. resume() can't help, because as far as WebKit knows it is
+   * running. Watch the clock, and if it stops while it should run, restart it.
+   */
+  private watchAudioClock() {
+    let clock = -1
+    let since = 0
+    let recovering = false
+    window.setInterval(async () => {
+      const ctx = engine.context()
+      if (recovering || !engine.ready || document.visibilityState !== 'visible' || ctx.state !== 'running') {
+        clock = -1
+        return
+      }
+      const now = performance.now()
+      if (ctx.currentTime !== clock) {
+        clock = ctx.currentTime
+        since = now
+        return
+      }
+      if (now - since < 1500) return
+      recovering = true
+      clock = -1
+      try {
+        await this.recoverFrozenAudio()
+      } finally {
+        recovering = false
+      }
+    }, 500)
+  }
+
+  private async recoverFrozenAudio() {
+    noteAudio('clock stopped while running')
+    try {
+      if (await engine.kick()) {
+        noteAudio('clock restarted by suspend and resume')
+        return
+      }
+      noteAudio('rebuilding the audio engine')
+      this.abortCapture()
+      await engine.rebuild()
+      this.connectAudio(this.ui.get().playing)
+      noteAudio(`new audio context is ${engine.context().state}`)
+      // Outside a tap the new context may start suspended; wake() falls back to the next tap.
+      void this.wake()
+    } catch (err) {
+      console.error(err)
+      noteAudio(`recovery failed: ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+
+  /** A recording or clip can't survive the engine being replaced. */
+  private abortCapture() {
+    if (!this.ui.get().capture) return
+    window.clearTimeout(this.clipTimer)
+    this.clip = null
+    this.ui.set({ capture: null })
+    this.toast('Recording stopped because the audio restarted')
   }
 
   private tick(time: number) {

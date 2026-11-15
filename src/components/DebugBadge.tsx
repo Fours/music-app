@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { audioLog } from '../app/audio-log'
 import { app } from '../app/controller'
 import { debug } from '../app/debug'
 import { useStore } from '../app/store'
@@ -108,7 +109,13 @@ export function DebugBadge() {
       }
     }
     document.addEventListener('visibilitychange', onVisibility)
+    // Restarts and rebuilds the controller does to keep audio running.
+    const stopLog = audioLog.subscribe(() => {
+      const line = audioLog.get().lines.at(-1)
+      if (line) note(line.text)
+    })
     return () => {
+      stopLog()
       window.clearInterval(t)
       cancelAnimationFrame(raf)
       ctx?.removeEventListener('statechange', onState)

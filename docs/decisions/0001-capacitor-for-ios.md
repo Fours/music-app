@@ -35,7 +35,7 @@ All on the iPhone 14 unless noted.
 | Drawing | 53.5 fps average with 7 objects and 47 fps with 18, out of 60. No freezes (slowest frame 35 ms). The phone got very hot in the 18-object run, while charging. | T4 |
 | Clips | MP4 (H.264 and AAC) at 888×1920, about 25 fps, smooth with the sound in sync. One attempt hung on "Saving…" while the phone was hot; stopping now times out and says why. | T4 |
 | Recordings | WAV, plays back. Converting it stalls the main thread for about 0.2 s, enough for a few late notes. | T4 |
-| After unplugging and switching apps | Reported after T4: Play did nothing, with no sound and no animation. The animation runs on the audio clock, so this means the audio context stayed stopped. Not reproduced yet, and the cause is unconfirmed. | — |
+| After switching apps | Reported twice after T4: Play did nothing, with no sound and no animation. The context said `running` but its clock had stopped. The app now watches the clock and restarts or rebuilds the audio engine; this still needs confirming on the device. | T2 |
 
 The pattern: the audio engine itself is solid, timing included. The weak points are around it: how iOS stops and restarts a web view's audio (interruptions, route changes, mixing), and the cost of drawing.
 
