@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { audioLog } from '../app/audio-log'
 import { app } from '../app/controller'
 import { debug } from '../app/debug'
+import { drawStats, perfSwitches, togglePerf, type PerfSwitches } from '../app/perf'
 import { useStore } from '../app/store'
 import { engine } from '../audio/engine'
 
@@ -10,6 +11,12 @@ const mmss = (seconds: number) => {
   const s = Math.round(seconds)
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 }
+const SWITCHES: { key: keyof PerfSwitches; label: string }[] = [
+  { key: 'fps30', label: '30 fps' },
+  { key: 'noBlur', label: 'no blur' },
+  { key: 'noGrain', label: 'no grain' },
+]
+
 /** WKWebView draws at 60 Hz, even on ProMotion screens, unless a hidden setting is changed. */
 const FRAME_MS = 1000 / 60
 
@@ -20,6 +27,8 @@ const FRAME_MS = 1000 / 60
  */
 export function DebugBadge() {
   const on = useStore(debug, (s) => s.on)
+  const switches = useStore(perfSwitches, (s) => s)
+  const recovery = useStore(audioLog, (s) => s)
   const [info, setInfo] = useState(() => engine.debugInfo())
   // The last few changes of audio state or visibility, newest first.
   const [log, setLog] = useState<string[]>([])
@@ -42,12 +51,21 @@ export function DebugBadge() {
     let ctx: BaseAudioContext | null = null
     // Frames: count animation frames against the time they span. Counting misses per frame
     // undercounts on devices whose frames arrive every 18–26 ms rather than in whole 16.7 ms steps.
-    let run = { since: 0, frames: 0, span: 0, worst: 0, ticks: 0, late: 0 }
+    let run = { since: 0, frames: 0, span: 0, worst: 0, ticks: 0, late: 0, drawn: 0, drawMs: 0 }
     const recent: number[] = []
     let lastFrame = 0
     let raf = 0
     reset.current = () => {
-      run = { since: performance.now(), frames: 0, span: 0, worst: 0, ticks: app.ticks, late: app.lateTicks }
+      run = {
+        since: performance.now(),
+        frames: 0,
+        span: 0,
+        worst: 0,
+        ticks: app.ticks,
+        late: app.lateTicks,
+        drawn: drawStats.frames,
+        drawMs: drawStats.ms,
+      }
       app.maxTickGap = 0
       lastFrame = 0
     }
@@ -70,10 +88,16 @@ export function DebugBadge() {
       const avg = run.span ? (run.frames * 1000) / run.span : 0
       const ofTarget = Math.round((avg * FRAME_MS * 100) / 1000)
       const ticks = app.ticks - run.ticks
+      const seconds = (performance.now() - run.since) / 1000
+      const drawn = drawStats.frames - run.drawn
+      const drawMs = drawn ? (drawStats.ms - run.drawMs) / drawn : 0
       setPerf([
         `fps ${recent.length} now · ${avg.toFixed(1)} avg (${ofTarget}% of 60) · worst ${Math.round(run.worst)} ms`,
         `late ticks ${app.lateTicks - run.late} of ${ticks} · max gap ${(app.maxTickGap / 1000).toFixed(2)} s · ` +
-          `${app.world.objects.length} objects · ${mmss((performance.now() - run.since) / 1000)}`,
+          `${app.world.objects.length} objects · ${mmss(seconds)}`,
+        // Script time only: WebKit rasterizes the canvas later, in its own processes, so the
+        // real cost of drawing shows in Instruments, not here.
+        `drawn ${seconds ? (drawn / seconds).toFixed(1) : '0'} fps · script ${drawMs.toFixed(2)} ms a frame`,
       ])
     }
     const t = window.setInterval(() => {
@@ -109,13 +133,7 @@ export function DebugBadge() {
       }
     }
     document.addEventListener('visibilitychange', onVisibility)
-    // Restarts and rebuilds the controller does to keep audio running.
-    const stopLog = audioLog.subscribe(() => {
-      const line = audioLog.get().lines.at(-1)
-      if (line) note(line.text)
-    })
     return () => {
-      stopLog()
       window.clearInterval(t)
       cancelAnimationFrame(raf)
       ctx?.removeEventListener('statechange', onState)
@@ -133,12 +151,37 @@ export function DebugBadge() {
       <div>
         clock {info.time} · session {info.session}
       </div>
+      <div className="debug-switches">
+        {SWITCHES.map(({ key, label }) => (
+          <button
+            key={key}
+            className={switches[key] ? 'on' : ''}
+            onClick={(e) => {
+              // A switch also restarts the counts, but shouldn't count as a tap on the badge.
+              e.stopPropagation()
+              togglePerf(key)
+              reset.current()
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
       {perf.map((line, i) => (
         <div key={i} className="debug-perf">
           {line}
         </div>
       ))}
       {away && <div className="debug-away">{away}</div>}
+      {/* What the clock watchdog did, kept across launches. */}
+      <div className="debug-recovery">
+        recovery this launch: {recovery.kicks} quick restarts · {recovery.rebuilds} rebuilds
+      </div>
+      {recovery.lines.slice(-4).map((l) => (
+        <div key={l.id} className="debug-recovery">
+          {l.at} {l.text}
+        </div>
+      ))}
       {log.map((line, i) => (
         <div key={i} className="debug-log">
           {line}

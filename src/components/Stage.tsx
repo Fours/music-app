@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { engine } from '../audio/engine'
 import { app } from '../app/controller'
+import { drawStats, perfSwitches } from '../app/perf'
 import { BEAD_SPREAD, HANDLE_ANGLE, hitRadius, radius, selectionRadius, sizeForRadius } from '../world/geometry'
 import { clampBead, harmonyOf } from '../world/pitch'
 import { beadPositions, draw } from '../world/render'
@@ -51,8 +52,16 @@ export function Stage() {
     resize()
     const ro = new ResizeObserver(resize)
     ro.observe(canvas)
+    let lastDraw = -Infinity
 
     const loop = (ms: number) => {
+      // The 30 fps switch skips every other frame (with a little slack for timing jitter).
+      if (perfSwitches.get().fps30 && ms - lastDraw < 1000 / 30 - 4) {
+        raf = requestAnimationFrame(loop)
+        return
+      }
+      lastDraw = ms
+      const started = performance.now()
       const dt = (ms - last) / 1000
       last = ms
       if (frames++ % 30 === 0) measureTray()
@@ -70,6 +79,8 @@ export function Stage() {
       draw(ctx, app.world, view)
       // Clips show the music without the editing UI.
       app.clip?.frame(ms, (c) => draw(c, app.world, { ...view, selectedId: null, heldId: null }))
+      drawStats.frames++
+      drawStats.ms += performance.now() - started
       raf = requestAnimationFrame(loop)
     }
     raf = requestAnimationFrame(loop)

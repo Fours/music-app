@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { app } from './app/controller'
+import { perfSwitches } from './app/perf'
 import { useStore } from './app/store'
 import { ClipPreview } from './components/ClipPreview'
 import { DebugBadge } from './components/DebugBadge'
@@ -16,6 +17,8 @@ export default function App() {
   const selectedId = useStore(app.ui, (s) => s.selectedId)
   const toast = useStore(app.ui, (s) => s.toast)
   const dragging = useStore(app.ui, (s) => s.dragging)
+  const noBlur = useStore(perfSwitches, (s) => s.noBlur)
+  const noGrain = useStore(perfSwitches, (s) => s.noGrain)
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -37,7 +40,9 @@ export default function App() {
 
   const running = phase === 'running'
   return (
-    <div className={`app ${running ? 'is-running' : ''} ${dragging ? 'is-dragging' : ''}`}>
+    <div
+      className={`app ${running ? 'is-running' : ''} ${dragging ? 'is-dragging' : ''} ${noBlur ? 'perf-no-blur' : ''} ${noGrain ? 'perf-no-grain' : ''}`}
+    >
       <Stage />
       <div className="grain" aria-hidden />
       {running && (

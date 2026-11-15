@@ -65,7 +65,9 @@ export function draw(ctx: CanvasRenderingContext2D, world: World, view: View) {
     g.addColorStop(0, rgba(c, 0.2 * world.level(o) + 0.06))
     g.addColorStop(1, rgba(c, 0))
     ctx.fillStyle = g
-    ctx.fillRect(0, 0, w, h)
+    // Only inside the wash's square: beyond its radius the gradient is
+    // transparent, so painting the rest of the canvas changes nothing but costs a lot.
+    ctx.fillRect(x - r, y - r, r * 2, r * 2)
   }
   // The whole scene glows very slightly with loudness.
   if (view.level > 0.001) {

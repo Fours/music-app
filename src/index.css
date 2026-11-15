@@ -1013,8 +1013,46 @@ p {
 .debug-perf {
   color: #a8d4ff;
 }
+.debug-recovery {
+  color: #ffb4a2;
+}
 .debug-away {
   color: #ffd98a;
+}
+
+/* -------------------------------------------- performance switches (T1) */
+
+.perf-no-blur .glass,
+.perf-no-blur .topbar .chip-button,
+.perf-no-blur .play-button,
+.perf-no-blur .tray,
+.perf-no-blur .sheet,
+.perf-no-blur .toast,
+.perf-no-blur .scene-name,
+.perf-no-blur .preview {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.perf-no-grain .grain {
+  display: none;
+}
+.debug-switches {
+  display: flex;
+  gap: 6px;
+  margin: 4px 0 2px;
+}
+.debug-switches button {
+  padding: 3px 7px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.75);
+  font: inherit;
+}
+.debug-switches button.on {
+  border-color: #ffd98a;
+  background: #ffd98a;
+  color: #2a2d38;
 }
 
 /* ---------------------------------------------------------- clip preview */

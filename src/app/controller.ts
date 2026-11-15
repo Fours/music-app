@@ -13,6 +13,11 @@ import { createStore, type CaptureKind, type Preview, type UIState } from './sto
 
 const TICK = 0.025
 const MAX_CLIP_SECONDS = 300
+/** How long the audio clock may stand still while playing before the watchdog acts (ms). */
+const STALL_MS = 3000
+/** How long the watchdog rests after any recovery attempt (ms). */
+const REST_MS = 15000
+const MAX_REBUILDS = 3
 
 /**
  * The app's single source of truth outside React. The simulation runs on the
@@ -158,47 +163,64 @@ export class Controller {
    * After some interruptions iOS reports the context as running while its
    * clock stands still: no sound, and no animation, since the simulation runs
    * on that clock. resume() can't help, because as far as WebKit knows it is
-   * running. Watch the clock, and if it stops while it should run, restart it.
+   * running. Watch the clock while music plays, and if it stops, restart it.
+   *
+   * Rebuilding is expensive (the reverb is regenerated), so the watchdog is
+   * deliberately slow to act, rests after every attempt, and gives up after a
+   * few rebuilds until Play is pressed again.
    */
   private watchAudioClock() {
     let clock = -1
     let since = 0
-    let recovering = false
+    let restUntil = 0
+    let busy = false
     window.setInterval(async () => {
       const ctx = engine.context()
-      if (recovering || !engine.ready || document.visibilityState !== 'visible' || ctx.state !== 'running') {
+      const now = performance.now()
+      const watching =
+        engine.ready &&
+        this.ui.get().playing &&
+        document.visibilityState === 'visible' &&
+        ctx.state === 'running' &&
+        this.rebuildsLeft > 0
+      if (busy || !watching || now < restUntil) {
         clock = -1
         return
       }
-      const now = performance.now()
       if (ctx.currentTime !== clock) {
         clock = ctx.currentTime
         since = now
         return
       }
-      if (now - since < 1500) return
-      recovering = true
+      if (now - since < STALL_MS) return
+      busy = true
       clock = -1
       try {
         await this.recoverFrozenAudio()
       } finally {
-        recovering = false
+        busy = false
+        restUntil = performance.now() + REST_MS
       }
     }, 500)
   }
 
+  /** Full rebuilds allowed before the watchdog waits for Play. Play resets it. */
+  private rebuildsLeft = MAX_REBUILDS
+
   private async recoverFrozenAudio() {
-    noteAudio('clock stopped while running')
+    noteAudio(`clock stopped for ${STALL_MS / 1000} s while playing`)
     try {
       if (await engine.kick()) {
-        noteAudio('clock restarted by suspend and resume')
+        noteAudio('clock restarted by suspend and resume', 'kicks')
         return
       }
-      noteAudio('rebuilding the audio engine')
+      this.rebuildsLeft--
+      noteAudio('rebuilding the audio engine', 'rebuilds')
       this.abortCapture()
       await engine.rebuild()
       this.connectAudio(this.ui.get().playing)
       noteAudio(`new audio context is ${engine.context().state}`)
+      if (this.rebuildsLeft === 0) noteAudio('no more rebuilds until Play is pressed')
       // Outside a tap the new context may start suspended; wake() falls back to the next tap.
       void this.wake()
     } catch (err) {
@@ -256,8 +278,10 @@ export class Controller {
       transport.pause()
       engine.setPaused(true, this.settings.volume)
     } else {
-      // Play is a tap, so it can also restart audio the system stopped.
+      // Play is a tap, so it can also restart audio the system stopped,
+      // and it lets the watchdog try rebuilding again.
       void engine.wake()
+      this.rebuildsLeft = MAX_REBUILDS
       transport.start('+0.05')
       engine.setPaused(false, this.settings.volume)
     }
