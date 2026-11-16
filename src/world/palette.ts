@@ -17,6 +17,20 @@ export const TEXTURE_COLORS: Record<TextureSound, string> = {
 
 export const INK = '#2a2d38'
 
+/** The sky's paper colour, roughly the middle of the background gradient. */
+const PAPER = 0xf3f2ef
+
+/**
+ * The colour that, painted normally over the paper, looks like `hex` painted
+ * with `multiply`. The soft glows used to be multiplied, which made WebKit's
+ * canvas painting about twice as expensive on iPhones; this keeps their look.
+ */
+export function onPaper(hex: string): string {
+  const n = parseInt(hex.slice(1), 16)
+  const ch = (shift: number) => Math.round((((n >> shift) & 255) * ((PAPER >> shift) & 255)) / 255)
+  return `#${((ch(16) << 16) | (ch(8) << 8) | ch(0)).toString(16).padStart(6, '0')}`
+}
+
 export function rgba(hex: string, a: number): string {
   const n = parseInt(hex.slice(1), 16)
   return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${Math.max(0, Math.min(1, a))})`

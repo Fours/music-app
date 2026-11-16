@@ -25,3 +25,6 @@ dist-ssr
 
 # Raw recordings for scripts/prepare-textures.mjs (large; only the processed loops are committed)
 samples-src/
+
+# Power and performance traces from the device (large)
+perf/

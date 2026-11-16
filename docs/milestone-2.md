@@ -73,6 +73,23 @@ Steps:
 - **Screen locked** is unexplained: the audio alone measured more CPU time in WebKit content than the whole app does with the screen on. Nothing in the app runs only while hidden (trails and ripples are pruned in the simulation, not the draw loop). The likely reason is that iOS moves the audio to the efficiency cores at a low clock when the screen is off, so the same work takes more CPU seconds but less energy. CPU time can't tell these apart; Instruments' Power Profiler, which reports energy, can.
 - An earlier all-off run measured 6.1 s in WebKit content, and an earlier 30 fps run 2.14 minutes; both were on older builds, the second while the frozen-clock watchdog from milestone 1 kept firing. The watchdog now waits 3 seconds instead of 1.5, watches only while playing, rests 15 seconds after each attempt, stops after 3 rebuilds until Play is pressed, and keeps its log and counts in the badge across launches.
 
+**30 minutes unplugged** (30 fps, blur and grain on): the thermal state reached Fair at 7 minutes and Serious at about 12, and the phone was very hot by the end (27:52). The 30 fps cap alone isn't enough.
+
+**Power Profiler** (iPhone 14, unplugged, recorded on the phone with Settings → Developer → Performance Trace, about 2 minutes each, brightness 24%; read with `xctrace`):
+
+| Configuration | Whole phone, battery per hour | Skyloom CPU impact | GPU impact | Display impact |
+| --- | --- | --- | --- | --- |
+| Playing, 30 fps | 29.0% (about 3.7 W) | 14.6 | 1.0 | 2.9 |
+| Playing, 30 fps, no blur, no grain | 28.3% | 15.0 | 1.0 | 3.0 |
+| Paused (still drawing) | 13.6% (about 1.7 W) | 4.9 | 1.0 | 3.0 |
+| Home Screen | 4.7% (about 0.6 W) | | | |
+
+- **The heat is CPU, not the GPU chip.** WebKit paints a 2D canvas with CoreGraphics on the CPU, in its GPU process. In the CPU samples, CoreGraphics there had 993 samples while playing against 411 while paused. Audio DSP (vDSP in WebKit content) was about 5% of samples, playing or paused.
+- **The cause was `multiply` blending.** The texture washes, drone lobes and texture haze were painted with `multiply`, and so was the loudness glow, a full-screen gradient drawn only while music plays, which inherited the mode by accident. In the simulator the glow alone raised the GPU process from 25% to 38%, and turning `multiply` off everywhere took it from 24% to 11%. A blank canvas costs about 5%, so the canvas itself is cheap; what's painted on it is the cost.
+- **Fix:** everything is painted with normal blending. Over the near-white paper, `multiply` with colour c looks the same as normal blending with paper × c, so those four fills use that colour (`onPaper()` in `palette.ts`). Drawing one fixed frame of every preset both ways: on average 0.1–0.7 of 255 apart without the loudness glow and 1–3 with it, where the old glow darkened the washes it lay over. Side by side they look the same.
+- After the fix, in the simulator: the GPU process went from 25% to 11% on the welcome screen, and from 38% to 12% with the loudness glow on as while playing.
+- **The display** used about 0.5 W in Skyloom against 0.1 W on the Home Screen at the same brightness. The iPhone 14's OLED screen spends power on a bright picture, and the paper is near-white. A dark sky would save part of that; it's a design decision for later.
+
 **Simulator results** (iPhone 17 Pro simulator on this Mac, Morning Fog with 6 objects, 15 seconds each; percent of one Mac core; relative only):
 
 | Configuration | App | WebKit content | WebKit GPU | Total |
@@ -93,7 +110,7 @@ Steps:
 
 **Done when:**
 
-- [ ] CPU and Energy Impact are recorded for each configuration, and for the screen locked (audio only).
+- [x] CPU and Energy Impact are recorded for each configuration, and for the screen locked (audio only).
 - [ ] The defaults are chosen from those numbers, and anything that changes the look is noted.
 - [ ] A 7-object scene plays for 30 minutes unplugged without the phone getting hot.
 - [ ] 18 objects hold a steady 30 fps.

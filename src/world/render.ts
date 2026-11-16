@@ -1,6 +1,6 @@
 import { noteName } from '../music/theory'
 import { beadRadius, HANDLE_ANGLE, radius, selectionRadius } from './geometry'
-import { INK, KIND_COLORS, TEXTURE_COLORS, rgba } from './palette'
+import { INK, KIND_COLORS, TEXTURE_COLORS, onPaper, rgba } from './palette'
 import { baseNote, beadNote, harmonyOf, pitchesFor } from './pitch'
 import { beadAngle, type World } from './sim'
 import type { Chime, Drone, Orbit, Pulse, Settings, Texture, WorldObject } from './types'
@@ -18,6 +18,8 @@ export interface View {
 }
 
 const TAU = Math.PI * 2
+const GLOW = onPaper('#f3e7d8')
+const DRONE_LOBE = onPaper(KIND_COLORS.drone)
 
 function seed(id: string): number {
   let h = 2166136261
@@ -49,19 +51,20 @@ export function draw(ctx: CanvasRenderingContext2D, world: World, view: View) {
   bg.addColorStop(0, '#f8f6f2')
   bg.addColorStop(0.6, '#f2f1ee')
   bg.addColorStop(1, '#e9eef1')
+  // Everything is painted with normal blending. Multiply made the canvas about
+  // twice as expensive to paint on iPhones (milestone 2, T1); onPaper() keeps the look.
   ctx.globalCompositeOperation = 'source-over'
   ctx.fillStyle = bg
   ctx.fillRect(0, 0, w, h)
 
   // Textures wash colour across the whole sky.
-  ctx.globalCompositeOperation = 'multiply'
   for (const o of world.objects) {
     if (o.kind !== 'texture') continue
     const x = o.x * w
     const y = o.y * h
     const r = radius(o, unit) * 3.2
     const g = ctx.createRadialGradient(x, y, 0, x, y, r)
-    const c = TEXTURE_COLORS[o.sound]
+    const c = onPaper(TEXTURE_COLORS[o.sound])
     g.addColorStop(0, rgba(c, 0.2 * world.level(o) + 0.06))
     g.addColorStop(1, rgba(c, 0))
     ctx.fillStyle = g
@@ -72,8 +75,8 @@ export function draw(ctx: CanvasRenderingContext2D, world: World, view: View) {
   // The whole scene glows very slightly with loudness.
   if (view.level > 0.001) {
     const g = ctx.createRadialGradient(w / 2, h * 0.55, 0, w / 2, h * 0.55, Math.max(w, h) * 0.7)
-    g.addColorStop(0, rgba('#f3e7d8', Math.min(0.5, view.level * 1.4)))
-    g.addColorStop(1, rgba('#f3e7d8', 0))
+    g.addColorStop(0, rgba(GLOW, Math.min(0.5, view.level * 1.4)))
+    g.addColorStop(1, rgba(GLOW, 0))
     ctx.fillStyle = g
     ctx.fillRect(0, 0, w, h)
   }
@@ -105,7 +108,6 @@ export function draw(ctx: CanvasRenderingContext2D, world: World, view: View) {
     }
   }
 
-  ctx.globalCompositeOperation = 'source-over'
   const selected = view.selectedId ? world.objects.find((o) => o.id === view.selectedId) : undefined
   if (selected) drawSelection(ctx, world, selected, view)
   if (held) drawNoteLabel(ctx, world, held, view.settings)
@@ -115,7 +117,6 @@ function drawPitchGuides(ctx: CanvasRenderingContext2D, world: World, o: WorldOb
   const pitches = pitchesFor(o.kind, harmonyOf(s))
   const n = pitches.length
   const current = baseNote(o, harmonyOf(s))
-  ctx.globalCompositeOperation = 'source-over'
   ctx.lineWidth = 1
   for (let i = 0; i < n; i++) {
     const y = (1 - i / (n - 1)) * world.height
@@ -127,7 +128,6 @@ function drawPitchGuides(ctx: CanvasRenderingContext2D, world: World, o: WorldOb
     ctx.lineTo(world.width, Math.round(y) + 0.5)
     ctx.stroke()
   }
-  ctx.globalCompositeOperation = 'multiply'
 }
 
 function drawNoteLabel(ctx: CanvasRenderingContext2D, world: World, o: WorldObject, s: Settings) {
@@ -198,14 +198,13 @@ function drawDrone(ctx: CanvasRenderingContext2D, world: World, o: Drone, view: 
     const ox = Math.cos(ang) * r * 0.12
     const oy = Math.sin(ang) * r * 0.1
     const g = ctx.createRadialGradient(x + ox, y + oy, 0, x + ox, y + oy, r * (i ? 0.92 : 1))
-    g.addColorStop(0, rgba(color, a * 0.6))
-    g.addColorStop(0.45, rgba(color, a * 0.32))
-    g.addColorStop(1, rgba(color, 0))
+    g.addColorStop(0, rgba(DRONE_LOBE, a * 0.6))
+    g.addColorStop(0.45, rgba(DRONE_LOBE, a * 0.32))
+    g.addColorStop(1, rgba(DRONE_LOBE, 0))
     ctx.fillStyle = g
     circle(ctx, x + ox, y + oy, r)
     ctx.fill()
   }
-  ctx.globalCompositeOperation = 'source-over'
   ctx.strokeStyle = rgba(INK, 0.16 + bump * 0.2)
   ctx.lineWidth = 1
   circle(ctx, x, y, base * 0.55 * (1 + bump * 0.06))
@@ -217,7 +216,6 @@ function drawDrone(ctx: CanvasRenderingContext2D, world: World, o: Drone, view: 
   ctx.fillStyle = rgba(INK, 0.55)
   circle(ctx, x, y, 2)
   ctx.fill()
-  ctx.globalCompositeOperation = 'multiply'
 }
 
 // ---------------------------------------------------------------- chime
@@ -229,7 +227,6 @@ function drawChime(ctx: CanvasRenderingContext2D, world: World, o: Chime, view: 
   const r = radius(o, world.unit)
   const color = KIND_COLORS.chime
 
-  ctx.globalCompositeOperation = 'source-over'
   if (rt.trail.length > 1) {
     for (let i = 1; i < rt.trail.length; i++) {
       const p0 = rt.trail[i - 1]
@@ -266,7 +263,6 @@ function drawChime(ctx: CanvasRenderingContext2D, world: World, o: Chime, view: 
   ctx.fillStyle = color
   circle(ctx, x, y, r * (1 + glow * 0.18))
   ctx.fill()
-  ctx.globalCompositeOperation = 'multiply'
 }
 
 // ---------------------------------------------------------------- pulse
@@ -277,7 +273,6 @@ function drawPulse(ctx: CanvasRenderingContext2D, world: World, o: Pulse, view: 
   const y = o.y * world.height
   const r = radius(o, world.unit)
   const color = KIND_COLORS.pulse
-  ctx.globalCompositeOperation = 'source-over'
 
   for (const rp of rt.ripples) {
     const k = rp.r / rp.max
@@ -310,7 +305,6 @@ function drawPulse(ctx: CanvasRenderingContext2D, world: World, o: Pulse, view: 
   ctx.fillStyle = color
   circle(ctx, x, y, r * (0.62 + bump * 0.2))
   ctx.fill()
-  ctx.globalCompositeOperation = 'multiply'
 }
 
 // ---------------------------------------------------------------- orbit
@@ -322,7 +316,6 @@ function drawOrbit(ctx: CanvasRenderingContext2D, world: World, o: Orbit, view: 
   const r = radius(o, world.unit)
   const color = KIND_COLORS.orbit
   const n = o.beads.length
-  ctx.globalCompositeOperation = 'source-over'
 
   const soft = ctx.createRadialGradient(x, y, r * 0.2, x, y, r * 1.5)
   soft.addColorStop(0, rgba(color, 0.08))
@@ -411,7 +404,6 @@ function drawOrbit(ctx: CanvasRenderingContext2D, world: World, o: Orbit, view: 
   ctx.fillStyle = rgba(INK, 0.45)
   circle(ctx, x, y, 2)
   ctx.fill()
-  ctx.globalCompositeOperation = 'multiply'
 }
 
 /** Where each bead of an orbit is drawn, for hit-testing. */
@@ -439,14 +431,14 @@ function drawTexture(ctx: CanvasRenderingContext2D, world: World, o: Texture, vi
   const s = seed(o.id)
   const color = TEXTURE_COLORS[o.sound]
   const haze = ctx.createRadialGradient(x, y, 0, x, y, r)
-  haze.addColorStop(0, rgba(color, 0.3 + world.level(o) * 0.3))
-  haze.addColorStop(0.7, rgba(color, 0.14))
-  haze.addColorStop(1, rgba(color, 0))
+  const hazeColor = onPaper(color)
+  haze.addColorStop(0, rgba(hazeColor, 0.3 + world.level(o) * 0.3))
+  haze.addColorStop(0.7, rgba(hazeColor, 0.14))
+  haze.addColorStop(1, rgba(hazeColor, 0))
   ctx.fillStyle = haze
   circle(ctx, x, y, r)
   ctx.fill()
 
-  ctx.globalCompositeOperation = 'source-over'
   const t = view.t
   const fall = (d: number) => Math.max(0, 1 - d / r)
   ctx.lineCap = 'round'
@@ -523,5 +515,4 @@ function drawTexture(ctx: CanvasRenderingContext2D, world: World, o: Texture, vi
     }
   }
   ctx.lineCap = 'butt'
-  ctx.globalCompositeOperation = 'multiply'
 }
