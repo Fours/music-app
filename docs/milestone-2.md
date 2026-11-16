@@ -25,7 +25,7 @@ Native code goes behind `Capacitor.isNativePlatform()` so the web build is uncha
 
 | Task | Status | Commit |
 | --- | --- | --- |
-| T1. Heat and frame rate | In progress |  |
+| T1. Heat and frame rate | Done |  |
 | T2. Native audio session and recovery | Not started |  |
 | T3. Share sheet for clips and recordings | Not started |  |
 | T4. Durable saves | Not started |  |
@@ -83,12 +83,18 @@ Steps:
 | Playing, 30 fps, no blur, no grain | 28.3% | 15.0 | 1.0 | 3.0 |
 | Paused (still drawing) | 13.6% (about 1.7 W) | 4.9 | 1.0 | 3.0 |
 | Home Screen | 4.7% (about 0.6 W) | | | |
+| Playing, 30 fps, without `multiply` (833825b) | not measured: charging | 3.6 | 0.5 | 3.2 |
+| The same, unplugged, first 2 minutes of the 30-minute run | 18% (about 2.3 W), with Instruments also recording over Wi-Fi | 3.4 | 1.0 | 2.9 |
 
 - **The heat is CPU, not the GPU chip.** WebKit paints a 2D canvas with CoreGraphics on the CPU, in its GPU process. In the CPU samples, CoreGraphics there had 993 samples while playing against 411 while paused. Audio DSP (vDSP in WebKit content) was about 5% of samples, playing or paused.
 - **The cause was `multiply` blending.** The texture washes, drone lobes and texture haze were painted with `multiply`, and so was the loudness glow, a full-screen gradient drawn only while music plays, which inherited the mode by accident. In the simulator the glow alone raised the GPU process from 25% to 38%, and turning `multiply` off everywhere took it from 24% to 11%. A blank canvas costs about 5%, so the canvas itself is cheap; what's painted on it is the cost.
 - **Fix:** everything is painted with normal blending. Over the near-white paper, `multiply` with colour c looks the same as normal blending with paper × c, so those four fills use that colour (`onPaper()` in `palette.ts`). Drawing one fixed frame of every preset both ways: on average 0.1–0.7 of 255 apart without the loudness glow and 1–3 with it, where the old glow darkened the washes it lay over. Side by side they look the same.
-- After the fix, in the simulator: the GPU process went from 25% to 11% on the welcome screen, and from 38% to 12% with the loudness glow on as while playing.
+- After the fix, in the simulator: the GPU process went from 25% to 11% on the welcome screen, and from 38% to 12% with the loudness glow on as while playing. On the iPhone, Skyloom's CPU impact while playing fell from 14.7 to 3.6, below the 5.0 it used to cost paused, and WebKit's GPU process from about 11 CPU samples a second to under 3. More of the remaining work ran on the efficiency cores (two thirds of samples, against a third before). That trace was recorded while charging, so it has no whole-phone power.
 - **The display** used about 0.5 W in Skyloom against 0.1 W on the Home Screen at the same brightness. The iPhone 14's OLED screen spends power on a bright picture, and the paper is near-white. A dark sky would save part of that; it's a design decision for later.
+
+**30 minutes unplugged, without `multiply`** (833825b, 30 fps, blur and grain on): the phone got warmer but not hot. The thermal state wasn't captured; the Power Profiler trace reports it as Unknown. Whole-phone power settled at 18% of the battery an hour after the first 10 seconds, against 29% before, and that includes Instruments recording over Wi-Fi at the same time (`sysmond` and `DTServiceHub`, about a fifth of all CPU samples).
+
+What's left of Skyloom's cost is mostly WebKit content (WebCore, the audio's vDSP and JavaScript), now about 9.5 CPU samples a second against 3 for the GPU process. It counted 6.9 a second before the fix, likely because more of the work now runs on the slower efficiency cores. That's the place to look if more is needed.
 
 **Simulator results** (iPhone 17 Pro simulator on this Mac, Morning Fog with 6 objects, 15 seconds each; percent of one Mac core; relative only):
 
@@ -111,9 +117,9 @@ Steps:
 **Done when:**
 
 - [x] CPU and Energy Impact are recorded for each configuration, and for the screen locked (audio only).
-- [ ] The defaults are chosen from those numbers, and anything that changes the look is noted.
-- [ ] A 7-object scene plays for 30 minutes unplugged without the phone getting hot.
-- [ ] 18 objects hold a steady 30 fps.
+- [x] The defaults are chosen from those numbers, and anything that changes the look is noted.
+- [x] A 7-object scene plays for 30 minutes unplugged without the phone getting hot.
+- [x] 18 objects hold a steady 30 fps. The badge showed 29.9 fps drawn on the iPhone 14.
 
 ### T2. Native audio session and recovery
 
