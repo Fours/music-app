@@ -3,16 +3,15 @@ import Capacitor
 import UIKit
 
 /**
- * Owns the iOS audio session for Skyloom.
+ * Tells the page what the web view never hears: interruptions (calls, Siri),
+ * headphones going away, the app coming back to the foreground, and whether
+ * another app is playing.
  *
- * The web view can only ask for `playback`, which stops other apps' audio, or
- * `ambient`, which goes quiet with the silent switch. Skyloom wants playback
- * that mixes, so it can play under music or a podcast. That needs the session
- * set natively, and kept that way if WebKit changes it when audio starts.
- *
- * It also tells the page about what the web view never hears: interruptions
- * (calls, Siri), headphones going away, and the app coming back to the
- * foreground, so the page can pause or restart its audio.
+ * Skyloom's sound plays in WebKit's own media session, which the page sets to
+ * `playback`: it ignores the silent switch and doesn't mix with other apps
+ * (decision 0002). The app's session here is only for listening. It has to be
+ * active to get interruption notifications, and it mixes so that activating it
+ * at launch doesn't stop someone's podcast or compete with WebKit's session.
  *
  * Events: `interruption` { phase, shouldResume, reason }, `headphonesGone`,
  * `foreground`, `sessionReset` { was }, `mediaReset`.

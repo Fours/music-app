@@ -9,7 +9,7 @@ import { World } from '../world/sim'
 import { LIMITS, type Kind, type Scene, type Settings, type WorldObject } from '../world/types'
 import { noteAudio } from './audio-log'
 import { ClipRecorder, clipType } from './clip'
-import { AudioSession, hasNativeAudio } from './native-audio'
+import { AudioSession, hasNativeAudio, otherAudioPlaying } from './native-audio'
 import { createStore, type CaptureKind, type Preview, type UIState } from './store'
 
 const TICK = 0.025
@@ -144,9 +144,18 @@ export class Controller {
    * on return, which leaves the app silent while it looks like it's playing.
    * Restart it whenever the page is shown again or the context stops. If the
    * system only allows that from a touch, do it on the next tap.
+   *
+   * Skyloom doesn't mix with other apps' audio (decision 0002): if another app
+   * took over while we were away, show Skyloom as paused instead of taking the
+   * audio back, as other iOS players do.
    */
   private wake = async () => {
     if (document.visibilityState !== 'visible' || !this.ui.get().playing) return
+    if (engine.context().state !== 'running' && (await otherAudioPlaying())) {
+      noteAudio('another app is playing: paused')
+      this.pause()
+      return
+    }
     if ((await engine.wake()) || this.waitingForTap) return
     this.waitingForTap = true
     const onTap = () => {
@@ -162,16 +171,22 @@ export class Controller {
    */
   private listenToNativeAudio() {
     if (!hasNativeAudio) return
+    // A call or Siri: show it as paused, and play again afterwards only if iOS says to.
     void AudioSession.addListener('interruption', (e) => {
       if (e.phase === 'began') {
-        noteAudio(`interrupted (${e.reason ?? 'default'})`, 'interruptions')
-      } else if (e.shouldResume) {
-        noteAudio('interruption ended, resuming')
+        const playing = this.ui.get().playing
+        noteAudio(`interrupted (${e.reason ?? 'default'})${playing ? ': paused' : ''}`, 'interruptions')
+        if (!playing) return
+        this.pause()
+        this.resumeAfterInterruption = true
+      } else if (e.shouldResume && this.resumeAfterInterruption) {
+        noteAudio('interruption ended: playing again')
+        this.play()
+        // Outside a tap the context may not restart; wake() falls back to the next tap.
         void this.wake()
       } else {
-        // iOS says not to start again by ourselves, so show it as paused rather than silently "playing".
-        noteAudio('interruption ended, iOS says not to resume: paused')
-        this.pause()
+        noteAudio(`interruption ended${this.resumeAfterInterruption ? ', iOS says not to resume' : ''}`)
+        this.resumeAfterInterruption = false
       }
     })
     void AudioSession.addListener('headphonesGone', () => {
@@ -184,6 +199,9 @@ export class Controller {
     void AudioSession.addListener('sessionReset', (e) => noteAudio(`session changed to ${e.was}; set it back`))
     void AudioSession.addListener('mediaReset', () => noteAudio('iOS audio services restarted'))
   }
+
+  /** Set when an interruption paused the music, so its end can start it again. Play or Pause clears it. */
+  private resumeAfterInterruption = false
 
   /** Whether WebKit changed the native session when audio started; if it did, set it back. */
   private async checkSession(when: string) {
@@ -315,6 +333,7 @@ export class Controller {
   }
 
   togglePlay() {
+    this.resumeAfterInterruption = false
     if (this.ui.get().playing) this.pause()
     else this.play()
   }

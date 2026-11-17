@@ -53,11 +53,11 @@ Milestone 1 found the audio engine solid and the drawing and audio lifecycle wea
 
 - Rename the app to Skyloom: the wordmark, page title, welcome screen, clip watermark, README, and the names of downloaded recordings and clips. Keep the `drift:scene` storage key, or migrate it, so existing saved scenes still load.
 - Share sheet for WAV recordings and video clips (`@capacitor/share` and `@capacitor/filesystem`). Download links don't work in a WKWebView.
-- Audio session set natively to playback with mix-with-others, so Skyloom can play under music or podcasts (decided in milestone 1, T2). Check that WebKit doesn't reset it.
+- A native audio plugin for interruptions and route changes. Skyloom doesn't mix with other apps' audio after all: WebKit can't both mix and ignore the silent switch (see [0002](decisions/0002-no-mixing-with-other-audio.md)).
 - Pause when headphones or AirPods disconnect, through a small native plugin for the route change. Today it carries on through the speaker.
 - Handle interruptions: test calls and Siri, which were skipped in T2.
-- Retest background playback once the session mixes with other audio, with the app on the home screen as well as locked, and measure battery over a long session.
-- Lock-screen and Control Center controls (play and pause, scene name). Milestone 1 (T3) showed background playback works: 11 minutes locked with no dropouts and steady timing. iOS doesn't give these to apps that mix with other audio, so this may become a setting together with mixing.
+- Retest background playback with the native plugin in, with the app on the home screen as well as locked, and measure battery over a long session.
+- Lock-screen and Control Center controls (play and pause, scene name). Milestone 1 (T3) showed background playback works: 11 minutes locked with no dropouts and steady timing. Skyloom doesn't mix with other audio, so these no longer depend on a mixing setting.
 - Move the autosave from `localStorage` to `@capacitor/preferences`, since iOS can clear web storage when space is low.
 - Safe areas, status bar, app icon, splash screen, and a light haptic tap on placing objects.
 - Vertical (9:16) clip option for TikTok, Reels and Shorts.
@@ -86,7 +86,7 @@ Milestone 1 found the audio engine solid and the drawing and audio lifecycle wea
 
 ## Decisions to make
 
-Decided: the name, Skyloom (see [Name](#name)); that Skyloom mixes with other apps' audio instead of stopping it (see milestone 1, T2); Capacitor (see [0001](decisions/0001-capacitor-for-ios.md)); and iOS 17 as the minimum version, set in the Xcode project (same record).
+Decided: the name, Skyloom (see [Name](#name)); that Skyloom doesn't mix with other apps' audio, reversing milestone 1, T2 (see [0002](decisions/0002-no-mixing-with-other-audio.md)); Capacitor (see [0001](decisions/0001-capacitor-for-ios.md)); and iOS 17 as the minimum version, set in the Xcode project (same record).
 
 Still open:
 

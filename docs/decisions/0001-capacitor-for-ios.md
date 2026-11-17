@@ -27,7 +27,7 @@ All on the iPhone 14 unless noted.
 | Offline | Every scene loads and plays in airplane mode. Capacitor serves audio files without an HTTP status, so samples are now loaded by our own `loadSample()`. | T1 |
 | Silent switch | Keeps playing. | T2 |
 | Leaving and returning | Silent on return at first. Fixed by restarting the audio context when the page shows again, with Play and the next tap as fallbacks. | T2 |
-| Other apps' audio | Skyloom and the other app stop each other, because the web view's `playback` session doesn't mix. Mixing is wanted and needs a native session. | T2 |
+| Other apps' audio | Skyloom and the other app stop each other, because the web view's `playback` session doesn't mix. Mixing was wanted then; [0002](0002-no-mixing-with-other-audio.md) drops it. | T2 |
 | AirPods removed | Carries on through the speaker. Needs a native route-change plugin to pause. | T2 |
 | Calls and Siri | Not tested. | T2 |
 | Screen locked | Played for 11 minutes with timing intact: the audio clock kept pace and 27,306 of 27,308 simulation steps ran. | T3 |

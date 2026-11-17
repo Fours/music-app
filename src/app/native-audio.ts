@@ -1,11 +1,11 @@
 import { Capacitor, registerPlugin, type PluginListenerHandle } from '@capacitor/core'
-import { createStore } from './store'
 
 /**
  * The iOS app's audio session plugin (ios/App/App/AudioSessionPlugin.swift).
- * It sets the session to playback that mixes with other apps' audio, and
- * reports interruptions, headphones going away and returns to the foreground,
- * which the web view never hears about. On the web none of this exists.
+ * It reports interruptions, headphones going away and returns to the
+ * foreground, which the web view never hears about, and whether another app
+ * is playing. The sound itself plays in WebKit's own session, which the page
+ * sets to 'playback' (see decision 0002). On the web none of this exists.
  */
 export interface SessionState {
   category: string
@@ -36,40 +36,14 @@ export const hasNativeAudio = Capacitor.isNativePlatform() && Capacitor.getPlatf
 
 export const AudioSession = registerPlugin<AudioSessionPlugin>('AudioSession')
 
-/**
- * Whether the iOS app also asks WebKit for 'playback', as the website does.
- * Off by default: then WebKit picks 'ambient' for its own media process while
- * the app's session is playback with mixing, and it's not yet known which of
- * the two decides the silent switch and background playback on a device.
- * A debug-badge switch, remembered on the device, so one build can test both.
- */
-const WEB_PLAYBACK_KEY = 'skyloom:web-playback'
-export const webPlayback = createStore({
-  on: (() => {
-    try {
-      return localStorage.getItem(WEB_PLAYBACK_KEY) === '1'
-    } catch {
-      return false
-    }
-  })(),
-})
-
-/** Sets the web view's own audio session type to match the switch. */
-export function applyWebSession() {
-  const nav = navigator as Navigator & { audioSession?: { type: string } }
-  if (!nav.audioSession) return
-  // The website always asks for 'playback' so the mute switch doesn't silence it.
-  nav.audioSession.type = !hasNativeAudio || webPlayback.get().on ? 'playback' : 'auto'
-}
-
-export function toggleWebPlayback() {
-  webPlayback.set((s) => ({ on: !s.on }))
+/** Whether another app is playing audio. Always false on the web. */
+export async function otherAudioPlaying(): Promise<boolean> {
+  if (!hasNativeAudio) return false
   try {
-    localStorage.setItem(WEB_PLAYBACK_KEY, webPlayback.get().on ? '1' : '0')
+    return (await AudioSession.getState()).otherAudio
   } catch {
-    // Private mode: the switch still applies for this session.
+    return false
   }
-  applyWebSession()
 }
 
 /** The native session as the debug badge shows it, refreshed by refreshSession(). */
@@ -87,7 +61,7 @@ export function refreshSession() {
   AudioSession.getState().then(
     (s) => {
       const opts = s.options.length ? ` + ${s.options.join(' + ')}` : ''
-      label = `${s.category}${opts} · ${s.output || 'no output'}${s.otherAudio ? ' · other audio' : ''}`
+      label = `app ${s.category}${opts} · ${s.output || 'no output'}${s.otherAudio ? ' · other audio' : ''}`
     },
     (err) => {
       label = `native error: ${err instanceof Error ? err.message : String(err)}`

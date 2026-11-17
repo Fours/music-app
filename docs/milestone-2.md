@@ -4,9 +4,9 @@ Source: [Skyloom for iPhone and iPad: plan](ios-app-plan.md), Milestones → 2, 
 
 ## Outcome
 
-Skyloom feels like an iPhone app rather than a website in a frame. It can play for an hour without heating the phone, mixes with other apps' audio, recovers from interruptions, shares clips and recordings through the share sheet, and keeps saved scenes safe. The web version keeps working from the same code.
+Skyloom feels like an iPhone app rather than a website in a frame. It can play for an hour without heating the phone, recovers from interruptions, shares clips and recordings through the share sheet, and keeps saved scenes safe. The web version keeps working from the same code.
 
-**Demo at the end:** play a busy scene for 30 minutes and show the phone is barely warm; play it under a podcast; take a call and come back to music; pull the AirPods out and see it pause; record a clip and send it to Photos from the share sheet.
+**Demo at the end:** play a busy scene for 30 minutes and show the phone is barely warm; switch the silent switch on and keep listening; take a call and come back to music; pull the AirPods out and see it pause; record a clip and send it to Photos from the share sheet.
 
 ## Scope
 
@@ -123,49 +123,43 @@ What's left of Skyloom's cost is mostly WebKit content (WebCore, the audio's vDS
 
 ### T2. Native audio session and recovery
 
-- A small native plugin sets the audio session to playback with mix-with-others, so Skyloom can play under music or podcasts. Check whether WebKit resets it when audio starts.
+- ~~A small native plugin sets the audio session to playback with mix-with-others, so Skyloom can play under music or podcasts.~~ Dropped: Skyloom doesn't mix with other audio ([0002](decisions/0002-no-mixing-with-other-audio.md)).
 - Recover from interruptions natively: on `AVAudioSession.interruptionNotification` and on returning to the foreground, reactivate the session, then resume the page's audio. Confirm on the device that the clock watchdog from milestone 1 recovers the frozen-clock case, and how often it has to.
 - Pause when headphones or AirPods disconnect (`routeChangeNotification` with reason `oldDeviceUnavailable`).
 - Test calls, FaceTime and Siri, which milestone 1 skipped.
-- Retest background playback with mixing on, both locked and on the home screen, and measure battery over a long session.
+- Retest background playback, both locked and on the home screen, and measure battery over a long session.
 
-**What's built.** `AudioSessionPlugin.swift`, registered by `MainViewController`, sets the app's session to `playback` with `mixWithOthers` (no ducking, so a podcast keeps its volume) as soon as the web view loads. It tells the page ([native-audio.ts](../src/app/native-audio.ts)) about:
+**What's built.** `AudioSessionPlugin.swift`, registered by `MainViewController`, tells the page ([native-audio.ts](../src/app/native-audio.ts)) what the web view never hears:
 
-- **Interruptions.** On the end it reactivates the session. If iOS says to resume, the page restarts its audio with `wake()`; if not, it pauses, so the screen never says playing while it's silent.
-- **Headphones gone** (`oldDeviceUnavailable`). The page pauses and says why. Reconnecting doesn't resume, as in other iOS apps.
-- **The category changing under us.** The plugin puts back playback with mixing and the page logs what it found. After starting audio, and after a rebuild, the page also asks the plugin to check.
-- **Returning to the foreground,** and the audio server restarting. The session is reactivated or set up again.
+- **Interruptions** (calls, Siri). Skyloom shows as paused, and plays again afterwards if iOS says to.
+- **Headphones gone** (`oldDeviceUnavailable`). Skyloom pauses and says why. Reconnecting doesn't resume, as in other iOS apps.
+- **Returning to the foreground.** The page restarts its audio, unless another app is playing: then it shows Skyloom as paused rather than taking the audio back.
+- The audio server restarting, and the app's session being changed, both logged.
 
-Every event goes in the debug badge's audio log, with a count of interruptions. The badge's session line shows the native session (category, options, output, whether other audio is playing) and the web view's own `navigator.audioSession` type.
+Every event goes in the debug badge's audio log, with a count of interruptions. The badge's session line shows the app's session, the output, whether other audio is playing, and the web view's own `navigator.audioSession` type.
 
-**Two sessions.** In the simulator, with the web view's type left on `auto`, WebKit sets **AmbientSound** for its own media process when Web Audio starts, while the app's session stays `playback + mix`. Ambient mixes, but on its own it goes quiet with the silent switch and may not play in the background. It's not known which session decides that on a device. The badge's **web playback** switch (remembered on the device, off by default) also asks WebKit for `playback`, as the website does, so one build can test both:
+**Two sessions, and no mixing.** Skyloom's sound plays in WebKit's own media session, not the app's. The page sets that one to `playback`, as the website does. In the simulator, left on `auto`, WebKit picked Ambient while the app's session stayed `playback + mix`; on the device that went quiet with the silent switch. With `playback` the silent switch is ignored, but a podcast stops Skyloom, and WebKit offers nothing that does both. Mixing is dropped ([0002](decisions/0002-no-mixing-with-other-audio.md)). The app's session still mixes, because it only listens: it has to be active to hear interruptions, and a non-mixing one would stop a podcast as soon as Skyloom opened.
 
-- If the silent switch, background playback and mixing all work with web playback off, keep it off.
-- If the silent switch mutes Skyloom, or it stops in the background, with web playback off, turn it on and check that mixing still works. If WebKit's `playback` stops other apps' audio again, that's a "when to revisit" case in [0001](decisions/0001-capacitor-for-ios.md) and needs a decision record.
-
-**Device checklist** (iPhone 14, badge on; note the badge's session line and audio log for each):
-
-| Check | Web playback off | Web playback on |
-| --- | --- | --- |
-| Session line once playing |  |  |
-| Silent switch on: still plays |  |  |
-| Plays under a podcast, neither stops |  |  |
-| Podcast started while Skyloom plays |  |  |
-| Screen locked 10 minutes, mixing with a podcast |  |  |
-| Home screen 10 minutes |  |  |
+**Device results** (iPhone 14, badge on; note the badge's session line and audio log for each):
 
 | Check | Expected | Result |
 | --- | --- | --- |
-| Phone call, answered then ended | Pauses for the call, resumes after |  |
-| Phone call, declined | Resumes |  |
-| FaceTime call | Pauses, resumes after |  |
-| Siri | Ducks or pauses, resumes after |  |
+| WebKit `auto` (since removed), silent switch on | | Silent |
+| WebKit `playback`, silent switch on | Keeps playing | Keeps playing |
+| WebKit `playback`, podcast started while Skyloom plays | Skyloom stops | Skyloom stops |
+| Back to Skyloom while the podcast plays | Shows paused; Play takes the audio back |  |
+| Phone call, answered then ended | Pauses for the call, plays again after |  |
+| Phone call, declined | Plays again |  |
+| FaceTime call | Pauses, plays again after |  |
+| Siri | Pauses, plays again after |  |
 | AirPods put in the case | Pauses with a message, stays paused when they come back |  |
 | Wired or Bluetooth headphones unplugged | Same |  |
 | Switching apps, 10 times | Plays on return; note any watchdog lines (quick restarts, rebuilds) |  |
+| Screen locked 10 minutes | Keeps playing |  |
+| Home screen 10 minutes | Keeps playing |  |
 | Battery over an hour, locked, 7 objects | Percent used |  |
 
-**Done when:** Skyloom plays under another app's audio; calls, Siri and AirPods behave as an iOS user expects; and background playback still holds.
+**Done when:** Skyloom plays with the silent switch on and gives way to another app's audio; calls, Siri and AirPods behave as an iOS user expects; and background playback still holds.
 
 ### T3. Share sheet for clips and recordings
 
@@ -195,9 +189,9 @@ Replace Capacitor's default icon and launch screen, check safe areas and the sta
 
 ### T7. Lock-screen controls
 
-Play and pause and the scene name on the lock screen and in Control Center. iOS doesn't show these for apps that mix with other audio, so decide with T2's results whether this becomes a setting together with mixing.
+Play and pause and the scene name on the lock screen and in Control Center. Skyloom doesn't mix with other audio ([0002](decisions/0002-no-mixing-with-other-audio.md)), so this no longer needs a setting. iOS doesn't show these for apps whose session mixes, and the app's own (listening) session does while WebKit's doesn't, so check which one counts.
 
-**Done when:** the decision is recorded and, if it ships, the controls work on the device.
+**Done when:** the controls work on the device.
 
 ### T8. Vertical clips
 
