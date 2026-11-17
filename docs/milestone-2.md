@@ -26,7 +26,7 @@ Native code goes behind `Capacitor.isNativePlatform()` so the web build is uncha
 | Task | Status | Commit |
 | --- | --- | --- |
 | T1. Heat and frame rate | Done |  |
-| T2. Native audio session and recovery | In progress |  |
+| T2. Native audio session and recovery | Done |  |
 | T3. Share sheet for clips and recordings | Not started |  |
 | T4. Durable saves | Not started |  |
 | T5. Rename the app to Skyloom | Not started |  |
@@ -160,7 +160,7 @@ Every event goes in the debug badge's audio log, with a count of interruptions. 
 | Switching apps, 10 times | Plays on return; note any watchdog lines (quick restarts, rebuilds) |  |
 | Screen locked 10 minutes | Keeps playing | Kept playing. The badge showed no away line; it now finds time away from the gap in frames instead of waiting for the page to say it was hidden |
 | Home screen 10 minutes | Keeps playing | Kept playing: `away 10:34 · audio clock +10:34 · ticks 25369 of 25369 · longest gap 0.1 s` |
-| Battery over an hour, locked, 7 objects | Percent used |  |
+| Battery over an hour, locked, 7 objects | Percent used | 7% (75% to 68%). The phone alone on the home screen used 4.7% an hour in T1, so playing costs about 2–3% an hour on top |
 
 **Done when:** Skyloom plays with the silent switch on and gives way to another app's audio; calls, Siri and AirPods behave as an iOS user expects; and background playback still holds.
 
