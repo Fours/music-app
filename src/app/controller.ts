@@ -11,6 +11,7 @@ import { noteAudio } from './audio-log'
 import { ClipRecorder, clipType } from './clip'
 import { AudioSession, hasNativeAudio, otherAudioPlaying } from './native-audio'
 import { clearShareFiles, openShareSheet, writeShareFile } from './share'
+import { readSaved, writeSaved } from './storage'
 import { createStore, type CaptureKind, type Preview, type UIState } from './store'
 
 const TICK = 0.025
@@ -54,30 +55,60 @@ export class Controller {
   private lastTickAt = 0
 
   constructor() {
-    const saved = loadSaved()
-    if (saved) this.loadScene(saved.scene, saved.presetId)
-    else this.loadPreset(PRESETS[0].id)
-    // Autosave whenever the scene changes, so a reload picks up where you left off.
-    let last = -1
+    this.loadPreset(PRESETS[0].id)
+  }
+
+  private restored: Promise<void> | null = null
+
+  /**
+   * Loads the autosaved scene, then starts autosaving. Reading the save is
+   * async in the iOS app, so main.tsx waits for this before the first render.
+   * Autosave starts only afterwards, so the default scene can't overwrite the
+   * save while it loads.
+   */
+  restore(): Promise<void> {
+    return (this.restored ??= readSaved(SAVE_KEY)
+      .then((raw) => {
+        const saved = parseSaved(raw)
+        if (saved) this.loadScene(saved.scene, saved.presetId)
+      })
+      .catch((err) => console.warn(`Could not load the saved scene: ${String(err)}`))
+      .finally(() => this.autosave()))
+  }
+
+  /** Saves whenever the scene changes, so a reload picks up where you left off. */
+  private autosave() {
+    let last = this.saveKey()
     let timer = 0
+    const flush = () => {
+      if (!timer) return
+      window.clearTimeout(timer)
+      timer = 0
+      this.save()
+    }
     this.ui.subscribe(() => {
-      const { version, settings } = this.ui.get()
-      const key = version * 1000 + Math.round(settings.volume * 100)
+      const key = this.saveKey()
       if (key === last) return
       last = key
       window.clearTimeout(timer)
-      timer = window.setTimeout(() => this.save(), 600)
+      timer = window.setTimeout(flush, 600)
     })
+    // Leaving the app comes before any force-quit, so a change made just before can't be lost.
+    // `pause` is Capacitor's event for the app going to the background.
+    document.addEventListener('pause', flush)
+    window.addEventListener('pagehide', flush)
+    document.addEventListener('visibilitychange', () => document.hidden && flush())
+  }
+
+  private saveKey() {
+    const { version, settings } = this.ui.get()
+    return version * 1000 + Math.round(settings.volume * 100)
   }
 
   private save() {
     const { sceneName, settings, presetId } = this.ui.get()
     const scene: Scene = { name: sceneName, settings, objects: this.world.objects }
-    try {
-      localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 2, presetId, scene }))
-    } catch {
-      // Private mode or full storage: autosave is a nicety, not a requirement.
-    }
+    void writeSaved(SAVE_KEY, JSON.stringify({ v: 2, presetId, scene }))
   }
 
   /** Each object's slider values this tick, for the audio. */
@@ -657,9 +688,8 @@ export class Controller {
 
 const SAVE_KEY = 'drift:scene'
 
-function loadSaved(): { scene: Scene; presetId: string | null } | null {
+function parseSaved(raw: string | null): { scene: Scene; presetId: string | null } | null {
   try {
-    const raw = localStorage.getItem(SAVE_KEY)
     if (!raw) return null
     const data = JSON.parse(raw)
     if ((data?.v !== 1 && data?.v !== 2) || !Array.isArray(data.scene?.objects)) return null

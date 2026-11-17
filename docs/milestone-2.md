@@ -28,7 +28,7 @@ Native code goes behind `Capacitor.isNativePlatform()` so the web build is uncha
 | T1. Heat and frame rate | Done |  |
 | T2. Native audio session and recovery | Done |  |
 | T3. Share sheet for clips and recordings | Done |  |
-| T4. Durable saves | Not started |  |
+| T4. Durable saves | In progress |  |
 | T5. Rename the app to Skyloom | Not started |  |
 | T6. App icon, splash, safe areas, haptics | Not started |  |
 | T7. Lock-screen controls | Not started |  |
@@ -201,6 +201,27 @@ Every event goes in the debug badge's audio log, with a count of interruptions. 
 ### T4. Durable saves
 
 Move the autosave from `localStorage` to `@capacitor/preferences`, since iOS can clear web storage when space is low, and migrate an existing saved scene on first launch.
+
+**What's built.** [storage.ts](../src/app/storage.ts) reads and writes the autosave. The key is still `drift:scene`.
+
+- In the iOS app the save goes to `@capacitor/preferences` (UserDefaults, stored as `CapacitorStorage.drift:scene`). The web build still uses `localStorage`.
+- On the first launch after the update, a save found only in `localStorage` is copied to Preferences and then deleted from `localStorage`, so an old copy can't come back later and replace a newer one.
+- Preferences can only be read asynchronously, so `app.restore()` loads the save and [main.tsx](../src/main.tsx) waits for it before the first render (up to 3 s, then the default scene). Autosave starts only after the restore, so the default scene can't overwrite the save while it loads.
+- A change still saves 600 ms after the last edit, but a pending save now goes through straight away when the app goes to the background (Capacitor's `pause`), or when the page is hidden or closed. Saves are written one after another, so an older write can't land after a newer one.
+- The debug switch, audio log and perf switches stay in `localStorage`: they're for debugging, and losing them costs nothing.
+
+**Simulator check** (iPhone 17 Pro):
+
+- **Migration:** the T3 build (which saves to `localStorage`) saved Hearth. After installing over it, the new build opened on Hearth. The save was in UserDefaults and no longer in `localStorage`.
+- **Force-quit:** I switched to Open Sea, went to the home screen right away, and force-quit with `simctl terminate`. The app reopened on Open Sea.
+- **Web:** a scene change survived a reload 50 ms later, which is inside the 600 ms autosave delay, so the save happened when the page closed.
+
+**Device results** (iPhone 14):
+
+| Check | Expected | Result |
+| --- | --- | --- |
+| Install over the T3 build without deleting the app | The scene from before loads |  |
+| Change the scene, swipe the app away from the app switcher, reopen | The change is still there |  |
 
 **Done when:** a scene saved before the update loads after it, and saves survive the app being force-quit.
 
