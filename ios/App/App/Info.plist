@@ -43,6 +43,8 @@
       </array>
     </dict>
 	</dict>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Skyloom saves the clips you record to your photo library.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>audio</string>

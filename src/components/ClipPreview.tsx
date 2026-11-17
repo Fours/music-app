@@ -1,14 +1,16 @@
 import { useState } from 'react'
 import { app } from '../app/controller'
 import { useStore } from '../app/store'
+import { ShareIcon } from './icons'
 
 const megabytes = (bytes: number) => `${(bytes / 1_000_000).toFixed(1)} MB`
 const seconds = (s: number) => (Number.isFinite(s) ? `${s.toFixed(1)} s` : 'unknown')
 
 /**
  * Shows a finished recording or clip in the iOS app, where downloading doesn't
- * work. It plays the file and lists what came out, which is also how milestone 1
- * checks clip quality on a device. The share sheet replaces it in milestone 2.
+ * work, with a Share button for the share sheet (Photos, Files, Messages…).
+ * Playing it pauses the scene. The details line is how clip quality is checked
+ * on a device.
  */
 export function ClipPreview() {
   const preview = useStore(app.ui, (s) => s.preview)
@@ -46,8 +48,11 @@ export function ClipPreview() {
         {isClip ? (
           <video
             src={preview.url}
+            poster={preview.poster}
+            preload="metadata"
             controls
             playsInline
+            onPlay={() => app.previewPlaying()}
             onLoadedMetadata={(e) => {
               const v = e.currentTarget
               setLoaded({ url: preview.url, seconds: v.duration, size: `${v.videoWidth}×${v.videoHeight}` })
@@ -57,12 +62,14 @@ export function ClipPreview() {
           <audio
             src={preview.url}
             controls
+            onPlay={() => app.previewPlaying()}
             onLoadedMetadata={(e) => setLoaded({ url: preview.url, seconds: e.currentTarget.duration })}
           />
         )}
-        <p className="preview-note">
-          Saving to Photos and Files is coming. For now you can play it here. Pause the scene to hear it on its own.
-        </p>
+        <button className="preview-share" onClick={() => void app.share()} disabled={preview.sharing}>
+          <ShareIcon />
+          {preview.sharing ? 'Opening…' : isClip ? 'Save or share the clip' : 'Save or share the recording'}
+        </button>
         <p className="preview-details">{details.join(' · ')}</p>
       </div>
     </div>

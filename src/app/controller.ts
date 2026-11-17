@@ -10,6 +10,7 @@ import { LIMITS, type Kind, type Scene, type Settings, type WorldObject } from '
 import { noteAudio } from './audio-log'
 import { ClipRecorder, clipType } from './clip'
 import { AudioSession, hasNativeAudio, otherAudioPlaying } from './native-audio'
+import { clearShareFiles, openShareSheet, writeShareFile } from './share'
 import { createStore, type CaptureKind, type Preview, type UIState } from './store'
 
 const TICK = 0.025
@@ -512,7 +513,7 @@ export class Controller {
       if (capture.kind === 'audio') {
         const blob = await engine.recorder.stop()
         const decoded = await Tone.getContext().rawContext.decodeAudioData(await blob.arrayBuffer())
-        const wav = encodeWav(decoded as AudioBuffer)
+        const wav = await encodeWav(decoded as AudioBuffer)
         this.deliver(wav, `${base}.wav`, { kind: 'audio', seconds: decoded.duration })
       } else {
         window.clearTimeout(this.clipTimer)
@@ -526,6 +527,7 @@ export class Controller {
           frames,
           problem: clip.problem,
           type: clip.type,
+          poster: clip.poster,
         })
       }
     } catch (err) {
@@ -539,21 +541,99 @@ export class Controller {
     }
   }
 
+  /** The finished file behind the preview, and where it was written for sharing. */
+  private previewBlob: Blob | null = null
+  private shareUri: Promise<string> | null = null
+  /** The scene was playing when the preview started playing, so it plays again when the preview closes. */
+  private resumeAfterPreview = false
+
   /**
    * Download links do nothing inside the iOS app, so there the recording opens
-   * in a preview instead. Milestone 2 replaces this with the share sheet.
+   * in a preview with a Share button instead. The web build downloads it.
    */
-  private deliver(blob: Blob, name: string, info: Pick<Preview, 'kind' | 'seconds' | 'frames' | 'problem'> & { type?: string }) {
+  private deliver(
+    blob: Blob,
+    name: string,
+    { poster, ...info }: Pick<Preview, 'kind' | 'seconds' | 'frames' | 'problem'> & { type?: string; poster?: Blob | null },
+  ) {
     if (!Capacitor.isNativePlatform()) return this.download(blob, name)
-    this.closePreview()
-    const url = URL.createObjectURL(blob)
-    this.ui.set({ preview: { ...info, url, name, type: info.type ?? blob.type, bytes: blob.size } })
+    this.clearPreview()
+    this.previewBlob = blob
+    this.ui.set({
+      preview: {
+        ...info,
+        url: URL.createObjectURL(blob),
+        poster: poster ? URL.createObjectURL(poster) : undefined,
+        name,
+        type: info.type ?? blob.type,
+        bytes: blob.size,
+        sharing: false,
+      },
+    })
   }
 
+  /** Opens the share sheet for the previewed file, writing it to disk the first time. */
+  async share() {
+    const preview = this.ui.get().preview
+    const blob = this.previewBlob
+    if (!preview || !blob || preview.sharing) return
+    const setSharing = (sharing: boolean) =>
+      this.ui.set((s) => (s.preview?.url === preview.url ? { preview: { ...s.preview, sharing } } : {}))
+    setSharing(true)
+    try {
+      let uri: string
+      try {
+        // Clearing first also removes anything left by a share that was cut short.
+        this.shareUri ??= clearShareFiles().then(() => writeShareFile(blob, preview.name))
+        uri = await this.shareUri
+      } catch (err) {
+        console.error(err)
+        this.shareUri = null
+        const why = err instanceof Error ? `: ${err.message}` : ''
+        this.toast(`Sorry, the file could not be written${why}`, 10000)
+        return
+      }
+      try {
+        await openShareSheet(uri)
+      } catch (err) {
+        console.error(err)
+        // The share sheet reports every failure the same way, including Save
+        // Video when Skyloom isn't allowed to add to Photos.
+        this.toast(
+          preview.kind === 'video'
+            ? 'Sorry, that didn’t work. To save clips to Photos, allow Skyloom to add photos in Settings.'
+            : 'Sorry, that recording could not be saved or shared',
+          8000,
+        )
+      }
+    } finally {
+      setSharing(false)
+    }
+  }
+
+  /** The preview's player started: pause the scene so it can be heard on its own. */
+  previewPlaying() {
+    if (!this.ui.get().playing) return
+    this.resumeAfterPreview = true
+    this.pause()
+  }
+
+  /** Closes the preview from a tap, and plays the scene again if the preview paused it. */
   closePreview() {
+    if (!this.ui.get().preview) return
+    this.clearPreview()
+    if (this.resumeAfterPreview) this.play()
+    this.resumeAfterPreview = false
+  }
+
+  private clearPreview() {
     const preview = this.ui.get().preview
     if (!preview) return
     URL.revokeObjectURL(preview.url)
+    if (preview.poster) URL.revokeObjectURL(preview.poster)
+    this.previewBlob = null
+    if (this.shareUri) void clearShareFiles()
+    this.shareUri = null
     this.ui.set({ preview: null })
   }
 

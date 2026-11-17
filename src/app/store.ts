@@ -23,6 +23,10 @@ export interface Preview {
   frames?: { drawn: number; expected: number; width: number; height: number }
   /** Clips only: what went wrong, if the recorder failed or stopped early but left some video. */
   problem?: string | null
+  /** Clips only: an image of the first frame, shown before the clip plays. */
+  poster?: string
+  /** The file is being written or the share sheet is open. */
+  sharing?: boolean
 }
 
 export interface UIState {

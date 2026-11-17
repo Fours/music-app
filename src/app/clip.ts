@@ -7,12 +7,19 @@
  * encoding (MediaRecorder), so nothing extra ships in the bundle.
  */
 
+import { Capacitor } from '@capacitor/core'
+
 const FPS = 30
 /** How long to wait for the recorder to hand over the last data before giving up (ms). */
 const STOP_TIMEOUT = 8000
-/** The clip fits inside 1920 × 1080 (or 1080 × 1920 when the window is tall). */
-const LONG = 1920
-const SHORT = 1080
+/**
+ * The clip fits inside 1920 × 1080 (or 1080 × 1920 when the window is tall).
+ * In the iOS app it's 1560 × 720, about 720 × 1560 on an iPhone: at full size
+ * the phone drew only about 25 of the 30 frames a second (milestone 1, T4).
+ */
+const NATIVE = Capacitor.isNativePlatform()
+const LONG = NATIVE ? 1560 : 1920
+const SHORT = NATIVE ? 720 : 1080
 
 // MP4 first: it's what Instagram, TikTok and Photos accept. Firefox only offers WebM.
 const TYPES = [
@@ -119,12 +126,19 @@ export class ClipRecorder {
     paint(ctx)
     ctx.restore()
     drawWatermark(ctx, canvas.width, canvas.height)
+    if (this.frames === 1) canvas.toBlob((b) => (this.poster = b), 'image/jpeg', 0.85)
   }
+
+  /**
+   * A still of the first frame, for the preview's poster: WebKit shows a
+   * recorded video as black until it plays.
+   */
+  poster: Blob | null = null
 
   /**
    * Resolves with whatever the recorder produced. Gives up after STOP_TIMEOUT,
    * since WebKit doesn't always fire `stop`, and a hung promise left the
-   * Clip button stuck on "Saving…".
+   * Record button stuck on "Saving…".
    */
   stop(): Promise<Blob> {
     this.stopping = true

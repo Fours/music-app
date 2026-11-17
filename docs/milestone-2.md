@@ -27,7 +27,7 @@ Native code goes behind `Capacitor.isNativePlatform()` so the web build is uncha
 | --- | --- | --- |
 | T1. Heat and frame rate | Done |  |
 | T2. Native audio session and recovery | Done |  |
-| T3. Share sheet for clips and recordings | Not started |  |
+| T3. Share sheet for clips and recordings | In progress |  |
 | T4. Durable saves | Not started |  |
 | T5. Rename the app to Skyloom | Not started |  |
 | T6. App icon, splash, safe areas, haptics | Not started |  |
@@ -169,6 +169,32 @@ Every event goes in the debug badge's audio log, with a count of interruptions. 
 - Send WAV recordings and video clips to the share sheet (`@capacitor/share` and `@capacitor/filesystem`), replacing the temporary preview's note. If a preview stays before sharing, pause the scene while it plays and show the first frame instead of black.
 - Encode WAV recordings in a worker, so stopping doesn't stall the music.
 - Record clips on phones at a size and frame rate the phone can draw (they came out at about 25 of 30 fps), for example 720×1560 or 24 fps. Keep the 8-second stop timeout.
+
+**What's built.** Record now opens a panel to pick audio or video (8c43d5d), so the Clip button is gone. In the iOS app, stopping opens the preview with a **Save or share** button:
+
+- The file is written to the app's cache ([share.ts](../src/app/share.ts)) in 3 MB pieces of base64, so a long clip never crosses to the native side as one huge string, then handed to the share sheet. The cache is cleared before each new file and when the preview closes. Cancelling the sheet keeps the preview, so it can be shared again.
+- `NSPhotoLibraryAddUsageDescription` is set, so Save Video asks to add to Photos instead of crashing the app. If that's refused, the share sheet only reports an error, so Skyloom says to allow it in Settings.
+- The preview shows the clip's first frame (a still taken when recording starts, used as the poster; WebKit ignores `#t=` on a blob URL). Playing the preview pauses the scene, and Done plays it again.
+- WAV encoding runs in a worker ([wav.worker.ts](../src/audio/wav.worker.ts)). In a desktop browser, encoding 2 minutes took 76 ms on the main thread; with the worker the page never stalled more than 5 ms, and the file came out byte for byte the same.
+- Clips in the iOS app fit 1560 × 720 instead of 1920 × 1080 (718 × 1560 on an iPhone 17 Pro). Still 30 fps: the app draws at 30 fps, and a 24 fps clip can only take frames the app draws, so it would come out nearer 15. The 8-second stop timeout stays. The web build is unchanged and still downloads.
+
+**Simulator check** (iPhone 17 Pro): an 8.7-second clip came out 718 × 1560 with 260 of 261 frames drawn (about 26 fps at the old size in milestone 1). The share sheet offered Save Video, Save to Files and Copy for the clip, and Save to Files and Use as Ringtone for a recording. A 9.4-second recording saved to Files as a valid WAV (stereo, 48 kHz). Save Video asked for Photos access with Skyloom's text; refusing showed the Settings message.
+
+**Device results** (iPhone 14):
+
+| Check | Expected | Result |
+| --- | --- | --- |
+| Clip → Save Video | In Photos, plays with sound |  |
+| Clip → Save to Files | In Files, plays |  |
+| Clip → Messages (or another app) | Sends, plays for the other person |  |
+| Recording → Save to Files | In Files, plays |  |
+| Recording → Messages (or another app) | Sends |  |
+| Close the share sheet without sharing, then Share again | Opens again |  |
+| Clip frames drawn (badge's preview details) | Close to 30 per second |  |
+| A recording of 2 minutes or more, stopped while playing | The music doesn't stall while it saves |  |
+| Play the preview, then Done | Scene pauses while it plays, plays again after |  |
+
+**Not done:** file names still start with `drift-` until the rename (T5). On the web, phones could also use the browser's own share sheet (`navigator.share` with files) instead of downloading; not planned yet.
 
 **Done when:** a clip and a recording can each be saved to Photos or Files and posted from the share sheet on the device.
 

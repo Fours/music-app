@@ -35,6 +35,12 @@ export const AudioIcon = (p: P) => (
     <path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 10.5v3" />
   </svg>
 )
+/** The iOS share mark: a box with an arrow out of the top. */
+export const ShareIcon = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M12 3.5v11M8 7.5l4-4 4 4M8.5 10.5H7a2 2 0 0 0-2 2V19a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6.5a2 2 0 0 0-2-2h-1.5" />
+  </svg>
+)
 export const PauseIcon = (p: P) => (
   <svg {...base(p)}>
     <rect x="6.5" y="5.5" width="3.5" height="13" rx="1" fill="currentColor" stroke="none" />
