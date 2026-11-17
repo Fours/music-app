@@ -9,6 +9,7 @@ import { World } from '../world/sim'
 import { LIMITS, type Kind, type Scene, type Settings, type WorldObject } from '../world/types'
 import { noteAudio } from './audio-log'
 import { ClipRecorder, clipType } from './clip'
+import { AudioSession, hasNativeAudio } from './native-audio'
 import { createStore, type CaptureKind, type Preview, type UIState } from './store'
 
 const TICK = 0.025
@@ -110,6 +111,8 @@ export class Controller {
     this.connectAudio(true)
     this.ui.set({ phase: 'running', playing: true })
     this.keepAudioAwake()
+    this.listenToNativeAudio()
+    void this.checkSession('after starting audio')
   }
 
   /**
@@ -151,6 +154,46 @@ export class Controller {
       void engine.wake()
     }
     window.addEventListener('pointerdown', onTap, { once: true, capture: true })
+  }
+
+  /**
+   * The iOS app's plugin hears what the web view doesn't: calls and Siri,
+   * headphones going away, and the session being changed under us.
+   */
+  private listenToNativeAudio() {
+    if (!hasNativeAudio) return
+    void AudioSession.addListener('interruption', (e) => {
+      if (e.phase === 'began') {
+        noteAudio(`interrupted (${e.reason ?? 'default'})`, 'interruptions')
+      } else if (e.shouldResume) {
+        noteAudio('interruption ended, resuming')
+        void this.wake()
+      } else {
+        // iOS says not to start again by ourselves, so show it as paused rather than silently "playing".
+        noteAudio('interruption ended, iOS says not to resume: paused')
+        this.pause()
+      }
+    })
+    void AudioSession.addListener('headphonesGone', () => {
+      noteAudio(`headphones disconnected${this.ui.get().playing ? ': paused' : ''}`)
+      if (!this.ui.get().playing) return
+      this.pause()
+      this.toast('Paused because your headphones disconnected')
+    })
+    void AudioSession.addListener('foreground', () => void this.wake())
+    void AudioSession.addListener('sessionReset', (e) => noteAudio(`session changed to ${e.was}; set it back`))
+    void AudioSession.addListener('mediaReset', () => noteAudio('iOS audio services restarted'))
+  }
+
+  /** Whether WebKit changed the native session when audio started; if it did, set it back. */
+  private async checkSession(when: string) {
+    if (!hasNativeAudio) return
+    try {
+      const { reapplied, was } = await AudioSession.apply()
+      noteAudio(reapplied ? `session was ${was} ${when}; set it back` : `session ${was} ${when}`)
+    } catch (err) {
+      noteAudio(`session check failed: ${err instanceof Error ? err.message : String(err)}`)
+    }
   }
 
   private keepAudioAwake() {
@@ -220,6 +263,7 @@ export class Controller {
       await engine.rebuild()
       this.connectAudio(this.ui.get().playing)
       noteAudio(`new audio context is ${engine.context().state}`)
+      void this.checkSession('after the rebuild')
       if (this.rebuildsLeft === 0) noteAudio('no more rebuilds until Play is pressed')
       // Outside a tap the new context may start suspended; wake() falls back to the next tap.
       void this.wake()
@@ -271,21 +315,28 @@ export class Controller {
   }
 
   togglePlay() {
+    if (this.ui.get().playing) this.pause()
+    else this.play()
+  }
+
+  play() {
     const { phase, playing } = this.ui.get()
-    if (phase !== 'running') return
-    const transport = Tone.getTransport()
-    if (playing) {
-      transport.pause()
-      engine.setPaused(true, this.settings.volume)
-    } else {
-      // Play is a tap, so it can also restart audio the system stopped,
-      // and it lets the watchdog try rebuilding again.
-      void engine.wake()
-      this.rebuildsLeft = MAX_REBUILDS
-      transport.start('+0.05')
-      engine.setPaused(false, this.settings.volume)
-    }
-    this.ui.set({ playing: !playing })
+    if (phase !== 'running' || playing) return
+    // Play is a tap, so it can also restart audio the system stopped,
+    // and it lets the watchdog try rebuilding again.
+    void engine.wake()
+    this.rebuildsLeft = MAX_REBUILDS
+    Tone.getTransport().start('+0.05')
+    engine.setPaused(false, this.settings.volume)
+    this.ui.set({ playing: true })
+  }
+
+  pause() {
+    const { phase, playing } = this.ui.get()
+    if (phase !== 'running' || !playing) return
+    Tone.getTransport().pause()
+    engine.setPaused(true, this.settings.volume)
+    this.ui.set({ playing: false })
   }
 
   // ------------------------------------------------------------ scenes

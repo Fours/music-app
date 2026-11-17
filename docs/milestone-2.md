@@ -26,7 +26,7 @@ Native code goes behind `Capacitor.isNativePlatform()` so the web build is uncha
 | Task | Status | Commit |
 | --- | --- | --- |
 | T1. Heat and frame rate | Done |  |
-| T2. Native audio session and recovery | Not started |  |
+| T2. Native audio session and recovery | In progress |  |
 | T3. Share sheet for clips and recordings | Not started |  |
 | T4. Durable saves | Not started |  |
 | T5. Rename the app to Skyloom | Not started |  |
@@ -128,6 +128,42 @@ What's left of Skyloom's cost is mostly WebKit content (WebCore, the audio's vDS
 - Pause when headphones or AirPods disconnect (`routeChangeNotification` with reason `oldDeviceUnavailable`).
 - Test calls, FaceTime and Siri, which milestone 1 skipped.
 - Retest background playback with mixing on, both locked and on the home screen, and measure battery over a long session.
+
+**What's built.** `AudioSessionPlugin.swift`, registered by `MainViewController`, sets the app's session to `playback` with `mixWithOthers` (no ducking, so a podcast keeps its volume) as soon as the web view loads. It tells the page ([native-audio.ts](../src/app/native-audio.ts)) about:
+
+- **Interruptions.** On the end it reactivates the session. If iOS says to resume, the page restarts its audio with `wake()`; if not, it pauses, so the screen never says playing while it's silent.
+- **Headphones gone** (`oldDeviceUnavailable`). The page pauses and says why. Reconnecting doesn't resume, as in other iOS apps.
+- **The category changing under us.** The plugin puts back playback with mixing and the page logs what it found. After starting audio, and after a rebuild, the page also asks the plugin to check.
+- **Returning to the foreground,** and the audio server restarting. The session is reactivated or set up again.
+
+Every event goes in the debug badge's audio log, with a count of interruptions. The badge's session line shows the native session (category, options, output, whether other audio is playing) and the web view's own `navigator.audioSession` type.
+
+**Two sessions.** In the simulator, with the web view's type left on `auto`, WebKit sets **AmbientSound** for its own media process when Web Audio starts, while the app's session stays `playback + mix`. Ambient mixes, but on its own it goes quiet with the silent switch and may not play in the background. It's not known which session decides that on a device. The badge's **web playback** switch (remembered on the device, off by default) also asks WebKit for `playback`, as the website does, so one build can test both:
+
+- If the silent switch, background playback and mixing all work with web playback off, keep it off.
+- If the silent switch mutes Skyloom, or it stops in the background, with web playback off, turn it on and check that mixing still works. If WebKit's `playback` stops other apps' audio again, that's a "when to revisit" case in [0001](decisions/0001-capacitor-for-ios.md) and needs a decision record.
+
+**Device checklist** (iPhone 14, badge on; note the badge's session line and audio log for each):
+
+| Check | Web playback off | Web playback on |
+| --- | --- | --- |
+| Session line once playing |  |  |
+| Silent switch on: still plays |  |  |
+| Plays under a podcast, neither stops |  |  |
+| Podcast started while Skyloom plays |  |  |
+| Screen locked 10 minutes, mixing with a podcast |  |  |
+| Home screen 10 minutes |  |  |
+
+| Check | Expected | Result |
+| --- | --- | --- |
+| Phone call, answered then ended | Pauses for the call, resumes after |  |
+| Phone call, declined | Resumes |  |
+| FaceTime call | Pauses, resumes after |  |
+| Siri | Ducks or pauses, resumes after |  |
+| AirPods put in the case | Pauses with a message, stays paused when they come back |  |
+| Wired or Bluetooth headphones unplugged | Same |  |
+| Switching apps, 10 times | Plays on return; note any watchdog lines (quick restarts, rebuilds) |  |
+| Battery over an hour, locked, 7 objects | Percent used |  |
 
 **Done when:** Skyloom plays under another app's audio; calls, Siri and AirPods behave as an iOS user expects; and background playback still holds.
 

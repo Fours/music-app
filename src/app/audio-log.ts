@@ -15,9 +15,10 @@ export interface AudioNote {
 
 interface AudioLog {
   lines: AudioNote[]
-  /** This launch: quick restarts (suspend and resume) and full rebuilds. */
+  /** This launch: quick restarts (suspend and resume), full rebuilds, and iOS interruptions. */
   kicks: number
   rebuilds: number
+  interruptions: number
 }
 
 const KEY = 'skyloom:audio-log'
@@ -32,11 +33,11 @@ function read(): AudioNote[] {
 }
 
 const saved = read()
-export const audioLog = createStore<AudioLog>({ lines: saved, kicks: 0, rebuilds: 0 })
+export const audioLog = createStore<AudioLog>({ lines: saved, kicks: 0, rebuilds: 0, interruptions: 0 })
 
 let id = saved.reduce((n, l) => Math.max(n, l.id), 0)
 
-export function noteAudio(text: string, count?: 'kicks' | 'rebuilds') {
+export function noteAudio(text: string, count?: 'kicks' | 'rebuilds' | 'interruptions') {
   console.info(`[audio] ${text}`)
   const line = { id: ++id, at: new Date().toTimeString().slice(0, 8), text }
   audioLog.set((s) => ({

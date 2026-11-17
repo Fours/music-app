@@ -1,4 +1,5 @@
 import * as Tone from 'tone'
+import { applyWebSession, hasNativeAudio, nativeSessionLabel } from '../app/native-audio'
 import type { Harmony } from '../music/theory'
 import type { Settings, SoundEvent, WorldObject } from '../world/types'
 import { Tape } from './tape'
@@ -43,8 +44,8 @@ export class AudioEngine {
 
   async init(onProgress?: (p: number) => void) {
     // Prefer stable playback over low latency; nothing here is played live.
-    const nav = navigator as Navigator & { audioSession?: { type: string } }
-    if (nav.audioSession) nav.audioSession.type = 'playback' // iOS: ignore the mute switch
+    // iOS: ignore the mute switch. The iOS app also sets its session natively (see native-audio.ts).
+    applyWebSession()
     Tone.setContext(new Tone.Context({ latencyHint: 'playback', lookAhead: 0.12 }))
     // Outside a tap (a rebuild), iOS may leave this pending; the next tap starts it instead.
     await settle(Tone.start(), 2000)
@@ -208,7 +209,9 @@ export class AudioEngine {
       state: this.ready ? (ctx.state as string) : 'not started',
       time: this.ready ? ctx.currentTime.toFixed(1) : '–',
       level: this.ready ? this.level().toFixed(3) : '–',
-      session: nav.audioSession?.type ?? 'n/a',
+      session: hasNativeAudio
+        ? `${nativeSessionLabel()} · web ${nav.audioSession?.type ?? 'n/a'}`
+        : (nav.audioSession?.type ?? 'n/a'),
     }
   }
 

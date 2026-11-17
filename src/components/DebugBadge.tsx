@@ -3,6 +3,7 @@ import { audioLog } from '../app/audio-log'
 import { app } from '../app/controller'
 import { debug } from '../app/debug'
 import { drawStats, perfSwitches, togglePerf, type PerfSwitches } from '../app/perf'
+import { hasNativeAudio, refreshSession, toggleWebPlayback, webPlayback } from '../app/native-audio'
 import { useStore } from '../app/store'
 import { engine } from '../audio/engine'
 
@@ -28,6 +29,7 @@ const FRAME_MS = 1000 / 60
 export function DebugBadge() {
   const on = useStore(debug, (s) => s.on)
   const switches = useStore(perfSwitches, (s) => s)
+  const webSession = useStore(webPlayback, (s) => s.on)
   const recovery = useStore(audioLog, (s) => s)
   const [info, setInfo] = useState(() => engine.debugInfo())
   // The last few changes of audio state or visibility, newest first.
@@ -101,6 +103,7 @@ export function DebugBadge() {
       ])
     }
     const t = window.setInterval(() => {
+      refreshSession()
       setInfo(engine.debugInfo())
       showPerf()
       const current = engine.context()
@@ -166,6 +169,17 @@ export function DebugBadge() {
             {label}
           </button>
         ))}
+        {hasNativeAudio && (
+          <button
+            className={webSession ? 'on' : ''}
+            onClick={(e) => {
+              e.stopPropagation()
+              toggleWebPlayback()
+            }}
+          >
+            web playback
+          </button>
+        )}
       </div>
       {perf.map((line, i) => (
         <div key={i} className="debug-perf">
@@ -175,7 +189,8 @@ export function DebugBadge() {
       {away && <div className="debug-away">{away}</div>}
       {/* What the clock watchdog did, kept across launches. */}
       <div className="debug-recovery">
-        recovery this launch: {recovery.kicks} quick restarts · {recovery.rebuilds} rebuilds
+        recovery this launch: {recovery.kicks} quick restarts · {recovery.rebuilds} rebuilds ·{' '}
+        {recovery.interruptions} interruptions
       </div>
       {recovery.lines.slice(-4).map((l) => (
         <div key={l.id} className="debug-recovery">
