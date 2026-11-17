@@ -156,9 +156,9 @@ Every event goes in the debug badge's audio log, with a count of interruptions. 
 | Siri | Pauses, plays again after | Yes |
 | AirPods put in the case | Pauses with a message, stays paused when they come back | Pauses |
 | Wired or Bluetooth headphones unplugged | Same |  |
-| Pause, leave for the home screen or another app, come back, Play | Plays | Did nothing until force-quit; fixed, recheck |
+| Pause, leave for the home screen or another app, come back, Play | Plays | Did nothing until force-quit; fixed, plays |
 | Switching apps, 10 times | Plays on return; note any watchdog lines (quick restarts, rebuilds) |  |
-| Screen locked 10 minutes | Keeps playing |  |
+| Screen locked 10 minutes | Keeps playing | Kept playing. The badge showed no away line; it now finds time away from the gap in frames instead of waiting for the page to say it was hidden |
 | Home screen 10 minutes | Keeps playing |  |
 | Battery over an hour, locked, 7 objects | Percent used |  |
 

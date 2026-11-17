@@ -56,6 +56,24 @@ export function DebugBadge() {
     const recent: number[] = []
     let lastFrame = 0
     let raf = 0
+    // While the app is off screen, measure whether audio and the simulation kept going.
+    // Frames stop whenever the page isn't on screen, so a long gap between two frames
+    // means it was away. This doesn't rely on visibilitychange, which a locked iPhone
+    // didn't always deliver (milestone 2, T2).
+    let seen: { wall: number; audio: number; ticks: number } | null = null
+    let hiddenEvent = false
+    const reportAway = (from: { wall: number; audio: number; ticks: number }, wall: number) => {
+      const away = (wall - from.wall) / 1000
+      const audioRan = engine.context().currentTime - from.audio
+      const ticks = app.ticks - from.ticks
+      // The simulation steps every 25 ms of audio time while playing.
+      const expected = Math.round(audioRan / 0.025)
+      setAway(
+        `away ${mmss(away)} · audio clock +${mmss(audioRan)} · ticks ${ticks} of ${expected} · ` +
+          `longest gap ${(app.maxTickGap / 1000).toFixed(1)} s${hiddenEvent ? '' : ' · no hidden event'}`,
+      )
+      hiddenEvent = false
+    }
     reset.current = () => {
       run = {
         since: performance.now(),
@@ -72,6 +90,9 @@ export function DebugBadge() {
     }
     reset.current()
     const onFrame = (ms: number) => {
+      const wall = Date.now()
+      if (seen && wall - seen.wall > 5000) reportAway(seen, wall)
+      seen = { wall, audio: engine.context().currentTime, ticks: app.ticks }
       const dt = ms - lastFrame
       // A gap over a second means the page was hidden, not that frames dropped.
       if (lastFrame && dt < 1000) {
@@ -113,26 +134,12 @@ export function DebugBadge() {
       }
       onState()
     }, 250)
-    // While the app is off screen, measure whether audio and the simulation kept going.
-    let left: { wall: number; audio: number; ticks: number } | null = null
     const onVisibility = () => {
       note(`page ${document.visibilityState}`)
-      const audio = engine.context().currentTime
-      if (document.visibilityState === 'hidden') {
-        left = { wall: Date.now(), audio, ticks: app.ticks }
-        app.maxTickGap = 0
-      } else if (left) {
-        const away = (Date.now() - left.wall) / 1000
-        const audioRan = audio - left.audio
-        const ticks = app.ticks - left.ticks
-        // The simulation steps every 25 ms of audio time while playing.
-        const expected = Math.round(audioRan / 0.025)
-        setAway(
-          `away ${mmss(away)} · audio clock +${mmss(audioRan)} · ticks ${ticks} of ${expected} · ` +
-            `longest gap ${(app.maxTickGap / 1000).toFixed(1)} s`,
-        )
-        left = null
-      }
+      if (document.visibilityState !== 'hidden') return
+      hiddenEvent = true
+      // So the away line's longest gap is the one while away.
+      app.maxTickGap = 0
     }
     document.addEventListener('visibilitychange', onVisibility)
     return () => {
