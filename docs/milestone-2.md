@@ -136,6 +136,8 @@ What's left of Skyloom's cost is mostly WebKit content (WebCore, the audio's vDS
 - **Returning to the foreground.** The page restarts its audio, unless another app is playing: then it shows Skyloom as paused rather than taking the audio back.
 - The audio server restarting, and the app's session being changed, both logged.
 
+**Pausing suspends the audio.** Pause used to only fade the volume to zero, leaving the context running and playing silence. WebKit then stops counting Skyloom as playing (its log releases the media-playback assertion), so once the app is in the background iOS suspends the web view's processes. On return the context still said `running` with its clock stopped, and Play did nothing until the app was force-quit. Now Pause suspends the context once the fade ends (not while a recording or clip runs), and Play's tap resumes it. It also saves battery while paused.
+
 Every event goes in the debug badge's audio log, with a count of interruptions. The badge's session line shows the app's session, the output, whether other audio is playing, and the web view's own `navigator.audioSession` type.
 
 **Two sessions, and no mixing.** Skyloom's sound plays in WebKit's own media session, not the app's. The page sets that one to `playback`, as the website does. In the simulator, left on `auto`, WebKit picked Ambient while the app's session stayed `playback + mix`; on the device that went quiet with the silent switch. With `playback` the silent switch is ignored, but a podcast stops Skyloom, and WebKit offers nothing that does both. Mixing is dropped ([0002](decisions/0002-no-mixing-with-other-audio.md)). The app's session still mixes, because it only listens: it has to be active to hear interruptions, and a non-mixing one would stop a podcast as soon as Skyloom opened.
@@ -148,12 +150,13 @@ Every event goes in the debug badge's audio log, with a count of interruptions. 
 | WebKit `playback`, silent switch on | Keeps playing | Keeps playing |
 | WebKit `playback`, podcast started while Skyloom plays | Skyloom stops | Skyloom stops |
 | Back to Skyloom while the podcast plays | Shows paused; Play takes the audio back |  |
-| Phone call, answered then ended | Pauses for the call, plays again after |  |
+| Phone call, answered then ended | Pauses for the call, plays again after | Yes |
 | Phone call, declined | Plays again |  |
 | FaceTime call | Pauses, plays again after |  |
-| Siri | Pauses, plays again after |  |
-| AirPods put in the case | Pauses with a message, stays paused when they come back |  |
+| Siri | Pauses, plays again after | Yes |
+| AirPods put in the case | Pauses with a message, stays paused when they come back | Pauses |
 | Wired or Bluetooth headphones unplugged | Same |  |
+| Pause, leave for the home screen or another app, come back, Play | Plays | Did nothing until force-quit; fixed, recheck |
 | Switching apps, 10 times | Plays on return; note any watchdog lines (quick restarts, rebuilds) |  |
 | Screen locked 10 minutes | Keeps playing |  |
 | Home screen 10 minutes | Keeps playing |  |

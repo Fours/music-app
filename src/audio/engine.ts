@@ -136,10 +136,27 @@ export class AudioEngine {
     this.slots.get(e.id)?.voice.trigger?.(e, o, h)
   }
 
-  /** Soft-mute for pausing; voices keep their state. */
-  setPaused(paused: boolean, volume: number) {
+  private suspendTimer = 0
+
+  /**
+   * Fades out for pausing, then suspends the context; voices keep their state.
+   *
+   * A context left running with nothing but silence isn't playing as far as
+   * WebKit is concerned, so iOS suspends the web view once the app is in the
+   * background. On return the context still said 'running' with its clock
+   * stopped, and Play had nothing to restart. Suspended, it's resumed by the
+   * Play tap like any other start. It also stops the phone working while paused.
+   * `suspend` is false while a recording or clip runs, so it keeps capturing.
+   */
+  setPaused(paused: boolean, volume: number, suspend = paused) {
     if (!this.ready) return
+    window.clearTimeout(this.suspendTimer)
     this.master.gain.rampTo(paused ? 0 : taper(volume, 0.8) * MAKEUP, paused ? 0.6 : 1.2)
+    if (!paused || !suspend) return
+    const ctx = Tone.getContext().rawContext as AudioContext
+    this.suspendTimer = window.setTimeout(() => {
+      if (ctx.state === 'running') void settle(ctx.suspend(), 1000)
+    }, 800)
   }
 
   /**
@@ -149,6 +166,8 @@ export class AudioEngine {
    */
   async wake(): Promise<boolean> {
     if (!this.ready) return true
+    // A pause's pending suspend would undo this.
+    window.clearTimeout(this.suspendTimer)
     const ctx = Tone.getContext().rawContext as AudioContext
     // WebKit also has a non-standard 'interrupted' state, which resume() clears too.
     if (ctx.state === 'running') return true

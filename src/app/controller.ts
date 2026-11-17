@@ -354,7 +354,8 @@ export class Controller {
     const { phase, playing } = this.ui.get()
     if (phase !== 'running' || !playing) return
     Tone.getTransport().pause()
-    engine.setPaused(true, this.settings.volume)
+    // A recording or clip keeps capturing while paused, so only suspend the audio once it ends.
+    engine.setPaused(true, this.settings.volume, !this.ui.get().capture)
     this.ui.set({ playing: false })
   }
 
@@ -479,6 +480,8 @@ export class Controller {
 
   private async startCapture(kind: CaptureKind) {
     try {
+      // Paused audio is suspended, and a capture needs it running. This is a tap, so it can resume it.
+      await engine.wake()
       if (kind === 'audio') {
         await engine.recorder.start()
       } else {
@@ -532,6 +535,7 @@ export class Controller {
       this.toast(`Sorry, that ${capture.kind === 'audio' ? 'recording' : 'clip'} could not be saved${why}`, why ? 10000 : 3800)
     } finally {
       this.ui.set({ capture: null })
+      if (!this.ui.get().playing) engine.setPaused(true, this.settings.volume)
     }
   }
 
