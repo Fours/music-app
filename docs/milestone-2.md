@@ -28,7 +28,7 @@ Native code goes behind `Capacitor.isNativePlatform()` so the web build is uncha
 | T1. Heat and frame rate | Done |  |
 | T2. Native audio session and recovery | Done |  |
 | T3. Share sheet for clips and recordings | Done |  |
-| T4. Durable saves | In progress |  |
+| T4. Durable saves | Done |  |
 | T5. Rename the app to Skyloom | Not started |  |
 | T6. App icon, splash, safe areas, haptics | Not started |  |
 | T7. Lock-screen controls | Not started |  |
@@ -220,8 +220,8 @@ Move the autosave from `localStorage` to `@capacitor/preferences`, since iOS can
 
 | Check | Expected | Result |
 | --- | --- | --- |
-| Install over the T3 build without deleting the app | The scene from before loads |  |
-| Change the scene, swipe the app away from the app switcher, reopen | The change is still there |  |
+| Install over the T3 build without deleting the app | The scene from before loads | Passed |
+| Change the scene, swipe the app away from the app switcher, reopen | The change is still there | Passed |
 
 **Done when:** a scene saved before the update loads after it, and saves survive the app being force-quit.
 
