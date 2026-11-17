@@ -27,7 +27,7 @@ Native code goes behind `Capacitor.isNativePlatform()` so the web build is uncha
 | --- | --- | --- |
 | T1. Heat and frame rate | Done |  |
 | T2. Native audio session and recovery | Done |  |
-| T3. Share sheet for clips and recordings | In progress |  |
+| T3. Share sheet for clips and recordings | Done |  |
 | T4. Durable saves | Not started |  |
 | T5. Rename the app to Skyloom | Not started |  |
 | T6. App icon, splash, safe areas, haptics | Not started |  |
@@ -184,15 +184,15 @@ Every event goes in the debug badge's audio log, with a count of interruptions. 
 
 | Check | Expected | Result |
 | --- | --- | --- |
-| Clip → Save Video | In Photos, plays with sound |  |
-| Clip → Save to Files | In Files, plays |  |
-| Clip → Messages (or another app) | Sends, plays for the other person |  |
-| Recording → Save to Files | In Files, plays |  |
-| Recording → Messages (or another app) | Sends |  |
-| Close the share sheet without sharing, then Share again | Opens again |  |
-| Clip frames drawn (badge's preview details) | Close to 30 per second |  |
-| A recording of 2 minutes or more, stopped while playing | The music doesn't stall while it saves |  |
-| Play the preview, then Done | Scene pauses while it plays, plays again after |  |
+| Clip → Save Video | In Photos, plays with sound | Passed |
+| Clip → Save to Files | In Files, plays | Passed |
+| Clip → Messages (or another app) | Sends, plays for the other person | Passed |
+| Recording → Save to Files | In Files, plays | Passed |
+| Recording → Messages (or another app) | Sends | Passed |
+| Close the share sheet without sharing, then Share again | Opens again | Passed |
+| Clip frames drawn (badge's preview details) | Close to 30 per second | Passed |
+| A recording of 2 minutes or more, stopped while playing | The music doesn't stall while it saves | Passed |
+| Play the preview, then Done | Scene pauses while it plays, plays again after | Passed |
 
 **Not done:** file names still start with `drift-` until the rename (T5). On the web, phones could also use the browser's own share sheet (`navigator.share` with files) instead of downloading; not planned yet.
 
