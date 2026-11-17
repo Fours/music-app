@@ -3,7 +3,8 @@ import { useStore } from '../app/store'
 import { KEYS, SCALES, keyName, scaleById } from '../music/theory'
 import { PRESETS } from '../world/presets'
 import { Slider } from './controls'
-import { CloseIcon } from './icons'
+import type { CaptureKind } from '../app/store'
+import { AudioIcon, ClipIcon, CloseIcon } from './icons'
 
 const close = () => app.ui.set({ panel: 'none' })
 
@@ -144,6 +145,61 @@ export function ScenesPanel() {
               <span className="scene-desc">Start from nothing and build your own</span>
             </span>
           </button>
+        </div>
+      </div>
+    </aside>
+  )
+}
+
+const CAPTURE_OPTIONS = [
+  {
+    kind: 'audio' as CaptureKind,
+    title: 'Audio',
+    desc: 'Record what you hear as a WAV file',
+    icon: <AudioIcon />,
+    supported: () => app.canRecord,
+  },
+  {
+    kind: 'video' as CaptureKind,
+    title: 'Video',
+    desc: 'A clip of the sky and its music, up to 5 minutes',
+    icon: <ClipIcon />,
+    supported: () => app.canClip,
+  },
+]
+
+/** Picks what to record. Choosing one closes the panel and starts recording. */
+export function RecordPanel() {
+  const start = (kind: CaptureKind) => {
+    // Start inside the tap, so a paused context can resume.
+    void app.toggleCapture(kind)
+    close()
+  }
+  return (
+    <aside className="sheet panel record-panel" aria-label="Record">
+      <header className="sheet-head">
+        <div className="sheet-title">
+          <h2>Record</h2>
+          <p>Tap the red button again to stop.</p>
+        </div>
+        <button className="icon-button" onClick={close} aria-label="Close">
+          <CloseIcon />
+        </button>
+      </header>
+      <div className="sheet-body">
+        <div className="scene-list">
+          {CAPTURE_OPTIONS.map((o) => {
+            const ok = o.supported()
+            return (
+              <button key={o.kind} className="scene-card" onClick={() => start(o.kind)} disabled={!ok}>
+                <span className="scene-swatch capture-swatch">{o.icon}</span>
+                <span className="scene-text">
+                  <span className="scene-title">{o.title}</span>
+                  <span className="scene-desc">{ok ? o.desc : 'This browser can’t record this'}</span>
+                </span>
+              </button>
+            )
+          })}
         </div>
       </div>
     </aside>

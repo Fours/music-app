@@ -29,6 +29,12 @@ export const ClipIcon = (p: P) => (
     <path d="M10.5 9.5v5l4.5-2.5z" fill="currentColor" />
   </svg>
 )
+/** Sound bars, for recording audio. */
+export const AudioIcon = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 10.5v3" />
+  </svg>
+)
 export const PauseIcon = (p: P) => (
   <svg {...base(p)}>
     <rect x="6.5" y="5.5" width="3.5" height="13" rx="1" fill="currentColor" stroke="none" />

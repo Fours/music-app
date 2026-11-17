@@ -5,7 +5,7 @@ import { useStore } from './app/store'
 import { ClipPreview } from './components/ClipPreview'
 import { DebugBadge } from './components/DebugBadge'
 import { Inspector } from './components/Inspector'
-import { ScenesPanel, SettingsPanel } from './components/Panels'
+import { RecordPanel, ScenesPanel, SettingsPanel } from './components/Panels'
 import { Stage } from './components/Stage'
 import { TopBar } from './components/TopBar'
 import { Tray } from './components/Tray'
@@ -52,6 +52,7 @@ export default function App() {
           {selectedId && <Inspector />}
           {!selectedId && panel === 'settings' && <SettingsPanel />}
           {!selectedId && panel === 'scenes' && <ScenesPanel />}
+          {!selectedId && panel === 'record' && <RecordPanel />}
         </>
       )}
       {toast && (

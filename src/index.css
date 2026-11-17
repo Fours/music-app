@@ -899,6 +899,23 @@ p {
 .scene-card.blank .scene-swatch {
   background: repeating-linear-gradient(-45deg, transparent 0 6px, rgba(42, 45, 56, 0.06) 6px 7px), #faf9f7;
 }
+.capture-swatch {
+  display: grid;
+  place-items: center;
+  background: #faf9f7;
+  color: var(--rec);
+}
+.capture-swatch svg {
+  width: 26px;
+  height: 26px;
+}
+.scene-card:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.scene-card:disabled:hover {
+  background: none;
+}
 .scene-text {
   display: flex;
   flex-direction: column;

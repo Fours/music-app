@@ -2,7 +2,7 @@ import { useSyncExternalStore } from 'react'
 import type { Settings } from '../world/types'
 
 export type Phase = 'welcome' | 'loading' | 'running'
-export type Panel = 'none' | 'settings' | 'scenes'
+export type Panel = 'none' | 'settings' | 'scenes' | 'record'
 export type CaptureKind = 'audio' | 'video'
 
 export interface Capture {

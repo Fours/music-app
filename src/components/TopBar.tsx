@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { app } from '../app/controller'
-import { useStore, type CaptureKind } from '../app/store'
+import { useStore } from '../app/store'
 import { keyName, scaleById } from '../music/theory'
 import { useDebugTaps } from '../app/debug'
-import { ClipIcon, PauseIcon, PlayIcon, ScenesIcon, SlidersIcon } from './icons'
+import { PauseIcon, PlayIcon, ScenesIcon, SlidersIcon } from './icons'
 
 export function TopBar() {
   const sceneName = useStore(app.ui, (s) => s.sceneName)
@@ -14,7 +14,7 @@ export function TopBar() {
   const tempo = useStore(app.ui, (s) => s.settings.tempo)
   const debugTaps = useDebugTaps()
 
-  const toggle = (p: 'settings' | 'scenes') =>
+  const toggle = (p: 'settings' | 'scenes' | 'record') =>
     app.ui.set({ panel: panel === p ? 'none' : p, selectedId: null })
 
   return (
@@ -50,8 +50,7 @@ export function TopBar() {
           <ScenesIcon />
           <span className="chip-text">Scenes</span>
         </button>
-        <CaptureButton kind="video" />
-        <CaptureButton kind="audio" />
+        <RecordButton open={panel === 'record'} onOpen={() => toggle('record')} />
         <button className="play-button" onClick={() => app.togglePlay()} aria-label={playing ? 'Pause' : 'Play'}>
           {playing ? <PauseIcon /> : <PlayIcon />}
         </button>
@@ -60,27 +59,18 @@ export function TopBar() {
   )
 }
 
-const CAPTURE = {
-  audio: {
-    supported: () => app.canRecord,
-    label: 'Record',
-    idleTitle: 'Record what you hear',
-    liveLabel: 'Stop recording and download',
-    liveTitle: 'Stop and download a WAV file',
-  },
-  video: {
-    supported: () => app.canClip,
-    label: 'Clip',
-    idleTitle: 'Record a video clip to share',
-    liveLabel: 'Stop the clip and download',
-    liveTitle: 'Stop and download the video',
-  },
+const LIVE = {
+  audio: { label: 'Stop recording and download', title: 'Stop and download a WAV file' },
+  video: { label: 'Stop the clip and download', title: 'Stop and download the video' },
 }
 
-/** Record (audio) or Clip (video). While one runs, the other steps aside. */
-function CaptureButton({ kind }: { kind: CaptureKind }) {
+/**
+ * Opens the record panel, where you pick audio or video. While a recording
+ * runs, it shows the time and stops it.
+ */
+function RecordButton({ open, onOpen }: { open: boolean; onOpen: () => void }) {
   const capture = useStore(app.ui, (s) => s.capture)
-  const since = capture?.kind === kind ? capture.since : null
+  const since = capture?.since ?? null
   const [secs, setSecs] = useState(0)
   useEffect(() => {
     if (since === null) return
@@ -89,21 +79,32 @@ function CaptureButton({ kind }: { kind: CaptureKind }) {
     const t = window.setInterval(update, 500)
     return () => window.clearInterval(t)
   }, [since])
-  const c = CAPTURE[kind]
-  if (!c.supported() || (capture && capture.kind !== kind)) return null
+  if (!app.canRecord && !app.canClip) return null
+  if (!capture) {
+    return (
+      <button
+        className={`chip-button record ${open ? 'on' : ''}`}
+        onClick={onOpen}
+        aria-expanded={open}
+        aria-label="Record"
+        title="Record audio or a video clip"
+      >
+        <span className="rec-dot" />
+        <span className="chip-text">Record</span>
+      </button>
+    )
+  }
   const time = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`
-  const live = since !== null
-  const saving = live && capture!.saving
   return (
     <button
-      className={`chip-button record ${live ? 'live' : ''}`}
-      onClick={() => app.toggleCapture(kind)}
-      disabled={saving}
-      aria-label={live ? c.liveLabel : c.label}
-      title={live ? c.liveTitle : c.idleTitle}
+      className="chip-button record live"
+      onClick={() => void app.toggleCapture(capture.kind)}
+      disabled={capture.saving}
+      aria-label={LIVE[capture.kind].label}
+      title={LIVE[capture.kind].title}
     >
-      {kind === 'audio' || live ? <span className="rec-dot" /> : <ClipIcon />}
-      <span className="chip-text">{saving ? 'Saving…' : live ? time : c.label}</span>
+      <span className="rec-dot" />
+      <span className="chip-text">{capture.saving ? 'Saving…' : time}</span>
     </button>
   )
 }
