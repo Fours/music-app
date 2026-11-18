@@ -4,9 +4,13 @@ import type { Settings } from '../world/types'
 export type Phase = 'welcome' | 'loading' | 'running'
 export type Panel = 'none' | 'settings' | 'scenes' | 'record'
 export type CaptureKind = 'audio' | 'video'
+/** A clip in the stage's own shape, or 9:16 for TikTok, Reels and Shorts. */
+export type ClipShape = 'screen' | 'vertical'
 
 export interface Capture {
   kind: CaptureKind
+  /** Clips only. */
+  shape?: ClipShape
   since: number
   saving: boolean
 }

@@ -14,7 +14,7 @@ import { AudioSession, hasNativeAudio, otherAudioPlaying } from './native-audio'
 import { connectNowPlaying } from './now-playing'
 import { clearShareFiles, openShareSheet, writeShareFile } from './share'
 import { readSaved, writeSaved } from './storage'
-import { createStore, type CaptureKind, type Preview, type UIState } from './store'
+import { createStore, type CaptureKind, type ClipShape, type Preview, type UIState } from './store'
 
 const TICK = 0.025
 const MAX_CLIP_SECONDS = 300
@@ -520,14 +520,15 @@ export class Controller {
   clip: ClipRecorder | null = null
   private clipTimer = 0
 
-  async toggleCapture(kind: CaptureKind) {
+  /** `shape` is for clips: the stage's shape, or 9:16. */
+  async toggleCapture(kind: CaptureKind, shape: ClipShape = 'screen') {
     const { capture, phase } = this.ui.get()
     if (phase !== 'running') return
-    if (!capture) return this.startCapture(kind)
+    if (!capture) return this.startCapture(kind, shape)
     if (capture.kind === kind && !capture.saving) return this.stopCapture()
   }
 
-  private async startCapture(kind: CaptureKind) {
+  private async startCapture(kind: CaptureKind, shape: ClipShape) {
     try {
       // Paused audio is suspended, and a capture needs it running. This is a tap, so it can resume it.
       await engine.wake()
@@ -537,14 +538,14 @@ export class Controller {
         const type = clipType()
         if (!type) return
         const { width, height } = this.world
-        this.clip = new ClipRecorder(engine.stream.stream, width, height, type)
+        this.clip = new ClipRecorder(engine.stream.stream, width, height, type, shape)
         this.clip.start()
         this.clipTimer = window.setTimeout(() => {
           this.toast('Clips stop at 5 minutes')
           void this.stopCapture()
         }, MAX_CLIP_SECONDS * 1000)
       }
-      this.ui.set({ capture: { kind, since: Date.now(), saving: false } })
+      this.ui.set({ capture: { kind, shape: kind === 'video' ? shape : undefined, since: Date.now(), saving: false } })
     } catch (err) {
       console.error(err)
       this.clip = null
@@ -569,7 +570,8 @@ export class Controller {
         this.clip = null
         const frames = { drawn: clip.frames, expected: clip.expectedFrames, width: clip.width, height: clip.height }
         const blob = await clip.stop()
-        this.deliver(blob, `${base}.${clip.extension}`, {
+        const suffix = clip.shape === 'vertical' ? '-vertical' : ''
+        this.deliver(blob, `${base}${suffix}.${clip.extension}`, {
           kind: 'video',
           seconds: (Date.now() - capture.since) / 1000,
           frames,

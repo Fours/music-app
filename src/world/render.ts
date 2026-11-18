@@ -42,6 +42,16 @@ function since(now: number, at: number, len: number): number {
   return Math.min(1, Math.max(0, (now - at) / len))
 }
 
+/**
+ * The same world seen at another size, for drawing a clip in a shape the
+ * stage isn't. Objects sit at fractions of the sky, so they keep their
+ * places; the world itself, and the simulation, are untouched.
+ */
+export function resized(world: World, width: number, height: number): World {
+  if (width === world.width && height === world.height) return world
+  return Object.create(world, { width: { value: width }, height: { value: height } })
+}
+
 export function draw(ctx: CanvasRenderingContext2D, world: World, view: View) {
   const { width: w, height: h } = world
   const unit = world.unit

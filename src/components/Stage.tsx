@@ -4,7 +4,7 @@ import { app } from '../app/controller'
 import { drawStats, perfSwitches } from '../app/perf'
 import { BEAD_SPREAD, HANDLE_ANGLE, hitRadius, radius, selectionRadius, sizeForRadius } from '../world/geometry'
 import { clampBead, harmonyOf } from '../world/pitch'
-import { beadPositions, draw } from '../world/render'
+import { beadPositions, draw, resized } from '../world/render'
 import type { Orbit, WorldObject } from '../world/types'
 
 /** How far (CSS px) a touch can wander and still count as a tap. */
@@ -77,8 +77,10 @@ export function Stage() {
         level: s.playing ? engine.level() : 0,
       }
       draw(ctx, app.world, view)
-      // Clips show the music without the editing UI.
-      app.clip?.frame(ms, (c) => draw(c, app.world, { ...view, selectedId: null, heldId: null }))
+      // Clips show the music without the editing UI, in a sky of the clip's shape.
+      app.clip?.frame(ms, (c, width, height) =>
+        draw(c, resized(app.world, width, height), { ...view, selectedId: null, heldId: null }),
+      )
       drawStats.frames++
       drawStats.ms += performance.now() - started
       raf = requestAnimationFrame(loop)

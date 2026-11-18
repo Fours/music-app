@@ -29,6 +29,13 @@ export const ClipIcon = (p: P) => (
     <path d="M10.5 9.5v5l4.5-2.5z" fill="currentColor" />
   </svg>
 )
+/** A tall frame with a play mark, for a 9:16 clip. */
+export const VerticalClipIcon = (p: P) => (
+  <svg {...base(p)}>
+    <rect x="6.5" y="2.5" width="11" height="19" rx="2.5" />
+    <path d="M10.5 9.5v5l4-2.5z" fill="currentColor" />
+  </svg>
+)
 /** Sound bars, for recording audio. */
 export const AudioIcon = (p: P) => (
   <svg {...base(p)}>

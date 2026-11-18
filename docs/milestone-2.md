@@ -32,7 +32,7 @@ Native code goes behind `Capacitor.isNativePlatform()` so the web build is uncha
 | T5. Rename the app to Skyloom | Done |  |
 | T6. App icon, splash, safe areas, haptics | Done |  |
 | T7. Lock-screen controls | Done |  |
-| T8. Vertical clips | Not started |  |
+| T8. Vertical clips | In progress |  |
 
 ### T1. Heat and frame rate
 
@@ -324,6 +324,34 @@ On the device the artwork shows, and Play restarts the sound even after 10 minut
 ### T8. Vertical clips
 
 A 9:16 clip option for TikTok, Reels and Shorts.
+
+**What's built.** A vertical clip draws the same sky laid out at 9:16, as if the window were that shape. It isn't a crop of the screen.
+
+- **How it's drawn:** objects sit at fractions of the sky, so [render.ts](../src/world/render.ts) draws the clip from `resized(world, …)`. That's a view of the world with a 9:16 width and height; the world itself and the simulation are untouched. The sky's short side matches the stage's, so objects stay the same size next to it.
+  - On a phone it looks almost exactly like the screen: the phone is a little taller than 9:16, so the sky is stretched slightly sideways, and nothing is cut off.
+  - On a desktop or an iPad in landscape, the sky is laid out tall instead of a narrow band being cut from it.
+- **Size:** 1080 × 1920 on the web. In the iOS app it's 720 × 1280, which is fewer pixels than the 718 × 1560 clips T3 found draw about 30 fps.
+- **Where the option is:**
+  - In the iOS app, the Record panel's Video is now the vertical clip. On a phone a screen-shaped clip would look almost the same, so there's one option.
+  - The web keeps Video (the stage's shape) and adds Vertical video.
+- **Watermark:** on vertical clips it's on the left, just below the top 14%. TikTok, Reels and Shorts cover the right side with their buttons, the bottom with the caption and the top with their tabs. Screen-shaped clips keep it bottom-right.
+- **File name:** vertical clips are named `skyloom-<scene>-<date>-<time>-vertical.mp4`.
+
+**Checks:**
+
+- **Web** (desktop browser, 1024 × 768 stage): a vertical clip came out 1080 × 1920 with 105 of 105 frames drawn. Every object was in the frame, and the watermark was where it should be. The Record panel offers Audio, Video and Vertical video.
+- **Simulator** (iPhone 17 Pro): the Record panel offers Audio and Video ("A 9:16 clip for TikTok, Reels and Shorts"). A 6.1-second clip came out 720 × 1280 with 181 of 182 frames drawn, and the share sheet opened with it.
+
+**Device results** (iPhone 14):
+
+| Check | Expected | Result |
+| --- | --- | --- |
+| Record a clip, play the preview | 9:16, plays with sound | |
+| Save Video | In Photos, plays | |
+| Post as a TikTok or Instagram Reels draft | Fills the screen, no bars; the watermark isn't under the app's buttons or caption | |
+| Frames drawn (preview details) | Close to 30 per second | |
+
+**Not done:** a square (1:1) option. It would be the same code with another shape, if it's ever wanted.
 
 **Done when:** a vertical clip records and shares on the device.
 

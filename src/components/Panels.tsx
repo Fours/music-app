@@ -1,10 +1,12 @@
+import { Capacitor } from '@capacitor/core'
+import type { ReactNode } from 'react'
 import { app } from '../app/controller'
 import { useStore } from '../app/store'
 import { KEYS, SCALES, keyName, scaleById } from '../music/theory'
 import { PRESETS } from '../world/presets'
 import { Slider } from './controls'
-import type { CaptureKind } from '../app/store'
-import { AudioIcon, ClipIcon, CloseIcon } from './icons'
+import type { CaptureKind, ClipShape } from '../app/store'
+import { AudioIcon, ClipIcon, CloseIcon, VerticalClipIcon } from './icons'
 
 const close = () => app.ui.set({ panel: 'none' })
 
@@ -151,28 +153,52 @@ export function ScenesPanel() {
   )
 }
 
-const CAPTURE_OPTIONS = [
-  {
-    kind: 'audio' as CaptureKind,
-    title: 'Audio',
-    desc: 'Record what you hear as a WAV file',
-    icon: <AudioIcon />,
-    supported: () => app.canRecord,
-  },
-  {
-    kind: 'video' as CaptureKind,
-    title: 'Video',
-    desc: 'A clip of the sky and its music, up to 5 minutes',
-    icon: <ClipIcon />,
-    supported: () => app.canClip,
-  },
-]
+interface CaptureOption {
+  kind: CaptureKind
+  shape?: ClipShape
+  title: string
+  desc: string
+  icon: ReactNode
+  supported: () => boolean
+}
+
+const AUDIO: CaptureOption = {
+  kind: 'audio',
+  title: 'Audio',
+  desc: 'Record what you hear as a WAV file',
+  icon: <AudioIcon />,
+  supported: () => app.canRecord,
+}
+const SCREEN_CLIP: CaptureOption = {
+  kind: 'video',
+  shape: 'screen',
+  title: 'Video',
+  desc: 'A clip of the sky and its music, up to 5 minutes',
+  icon: <ClipIcon />,
+  supported: () => app.canClip,
+}
+const VERTICAL_CLIP: CaptureOption = {
+  kind: 'video',
+  shape: 'vertical',
+  title: 'Vertical video',
+  desc: 'A 9:16 clip for TikTok, Reels and Shorts, up to 5 minutes',
+  icon: <VerticalClipIcon />,
+  supported: () => app.canClip,
+}
+
+/**
+ * In the iOS app a clip is always vertical: on a phone the screen is nearly
+ * 9:16 already, so a second, screen-shaped option would look the same.
+ */
+const CAPTURE_OPTIONS = Capacitor.isNativePlatform()
+  ? [AUDIO, { ...VERTICAL_CLIP, title: 'Video' }]
+  : [AUDIO, SCREEN_CLIP, VERTICAL_CLIP]
 
 /** Picks what to record. Choosing one closes the panel and starts recording. */
 export function RecordPanel() {
-  const start = (kind: CaptureKind) => {
+  const start = (o: CaptureOption) => {
     // Start inside the tap, so a paused context can resume.
-    void app.toggleCapture(kind)
+    void app.toggleCapture(o.kind, o.shape)
     close()
   }
   return (
@@ -191,7 +217,7 @@ export function RecordPanel() {
           {CAPTURE_OPTIONS.map((o) => {
             const ok = o.supported()
             return (
-              <button key={o.kind} className="scene-card" onClick={() => start(o.kind)} disabled={!ok}>
+              <button key={o.shape ?? o.kind} className="scene-card" onClick={() => start(o)} disabled={!ok}>
                 <span className="scene-swatch capture-swatch">{o.icon}</span>
                 <span className="scene-text">
                   <span className="scene-title">{o.title}</span>

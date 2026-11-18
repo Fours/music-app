@@ -8,6 +8,7 @@
  */
 
 import { Capacitor } from '@capacitor/core'
+import type { ClipShape } from './store'
 
 const FPS = 30
 /** How long to wait for the recorder to hand over the last data before giving up (ms). */
@@ -20,6 +21,8 @@ const STOP_TIMEOUT = 8000
 const NATIVE = Capacitor.isNativePlatform()
 const LONG = NATIVE ? 1560 : 1920
 const SHORT = NATIVE ? 720 : 1080
+/** Vertical clips are 9:16: 1080 × 1920, or 720 × 1280 in the iOS app for the same reason. */
+const VERTICAL = NATIVE ? { width: 720, height: 1280 } : { width: 1080, height: 1920 }
 
 // MP4 first: it's what Instagram, TikTok and Photos accept. Firefox only offers WebM.
 const TYPES = [
@@ -36,7 +39,8 @@ export function clipType(): string | null {
   return TYPES.find((t) => MediaRecorder.isTypeSupported(t)) ?? null
 }
 
-export type Paint = (ctx: CanvasRenderingContext2D) => void
+/** Draws the sky at `width` × `height` CSS pixels; the recorder scales it to the clip. */
+export type Paint = (ctx: CanvasRenderingContext2D, width: number, height: number) => void
 
 export class ClipRecorder {
   readonly type: string
@@ -46,6 +50,9 @@ export class ClipRecorder {
   private recorder: MediaRecorder
   private chunks: Blob[] = []
   private scale: number
+  readonly shape: ClipShape
+  /** The size of the sky the clip shows, in CSS pixels. */
+  private sky: { width: number; height: number }
   private lastFrame = -Infinity
   /** Frames painted into the clip, and when recording started (ms), to check against FPS. */
   frames = 0
@@ -56,14 +63,30 @@ export class ClipRecorder {
   /** The recorder's `stop` event has fired, so all its data has arrived. */
   private ended = false
 
-  /** `width` and `height` are the stage size in CSS pixels; the clip keeps its shape. */
-  constructor(audio: MediaStream, width: number, height: number, type: string) {
+  /**
+   * `width` and `height` are the stage size in CSS pixels. A screen-shaped
+   * clip keeps the stage's shape. A vertical one draws the same sky laid out
+   * at 9:16, as if the window were that shape: objects keep their places as
+   * fractions of the sky, and its short side matches the stage's, so they
+   * stay the same size next to it.
+   */
+  constructor(audio: MediaStream, width: number, height: number, type: string, shape: ClipShape = 'screen') {
     this.type = type
+    this.shape = shape
     this.extension = type.startsWith('video/mp4') ? 'mp4' : 'webm'
-    this.scale = Math.min(LONG / Math.max(width, height), SHORT / Math.min(width, height))
-    // Video encoders want even dimensions.
-    this.canvas.width = Math.round((width * this.scale) / 2) * 2
-    this.canvas.height = Math.round((height * this.scale) / 2) * 2
+    if (shape === 'vertical') {
+      const short = Math.min(width, height)
+      this.sky = { width: short, height: (short * 16) / 9 }
+      this.scale = VERTICAL.width / short
+      this.canvas.width = VERTICAL.width
+      this.canvas.height = VERTICAL.height
+    } else {
+      this.sky = { width, height }
+      this.scale = Math.min(LONG / Math.max(width, height), SHORT / Math.min(width, height))
+      // Video encoders want even dimensions.
+      this.canvas.width = Math.round((width * this.scale) / 2) * 2
+      this.canvas.height = Math.round((height * this.scale) / 2) * 2
+    }
 
     const stream = new MediaStream([
       ...this.canvas.captureStream(FPS).getVideoTracks(),
@@ -123,9 +146,9 @@ export class ClipRecorder {
     const { ctx, canvas } = this
     ctx.save()
     ctx.setTransform(this.scale, 0, 0, this.scale, 0, 0)
-    paint(ctx)
+    paint(ctx, this.sky.width, this.sky.height)
     ctx.restore()
-    drawWatermark(ctx, canvas.width, canvas.height)
+    drawWatermark(ctx, canvas.width, canvas.height, this.shape)
     if (this.frames === 1) canvas.toBlob((b) => (this.poster = b), 'image/jpeg', 0.85)
   }
 
@@ -173,16 +196,34 @@ export class ClipRecorder {
   }
 }
 
-/** "Skyloom" and the site's address, small in the bottom-right corner. */
-function drawWatermark(ctx: CanvasRenderingContext2D, w: number, h: number) {
+/**
+ * "Skyloom" and the site's address, small. Bottom-right, except on vertical
+ * clips: TikTok, Reels and Shorts put their buttons down the right and the
+ * caption along the bottom, and their tabs across the top, so it goes on the
+ * left just below the top 14%.
+ */
+function drawWatermark(ctx: CanvasRenderingContext2D, w: number, h: number, shape: ClipShape) {
   const u = Math.min(w, h) / 1080
   const pad = 36 * u
   const site = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) ? '' : location.host
   ctx.save()
   ctx.globalCompositeOperation = 'source-over'
+  ctx.fillStyle = 'rgba(42, 45, 56, 0.55)'
+  if (shape === 'vertical') {
+    ctx.textAlign = 'left'
+    ctx.textBaseline = 'top'
+    const top = h * 0.14
+    ctx.font = `${Math.round(40 * u)}px "Instrument Serif", Georgia, serif`
+    ctx.fillText('Skyloom', pad, top)
+    if (site) {
+      ctx.font = `500 ${Math.round(18 * u)}px "Inter Variable", system-ui, sans-serif`
+      ctx.fillText(site, pad, top + 48 * u)
+    }
+    ctx.restore()
+    return
+  }
   ctx.textAlign = 'right'
   ctx.textBaseline = 'alphabetic'
-  ctx.fillStyle = 'rgba(42, 45, 56, 0.55)'
   let y = h - pad
   if (site) {
     ctx.font = `500 ${Math.round(18 * u)}px "Inter Variable", system-ui, sans-serif`
