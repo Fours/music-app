@@ -74,6 +74,7 @@ Milestone 1 found the audio engine solid and the drawing and audio lifecycle wea
 - Screenshots for the required iPhone and iPad sizes, and an app preview video made with Clip.
 - Privacy policy page and the App Privacy label. With no analytics or accounts, "no data collected" may be possible, which reviewers and users both like.
 - TestFlight beta with 10–20 people, ideally from the iOS music community. Include at least one iPhone XS or XR and one 6th-generation iPad, the oldest devices iOS 17 supports, since only an iPhone 14 has been tested.
+- Replace the waves recording, or get a licence for it: it's licensed for non-commercial use only (see [CREDITS.md](../CREDITS.md)). Do this before release if Skyloom is paid or might ever make money.
 - Review notes that point out what's native (audio session, share sheet, lock-screen controls), because Apple rejects apps that are "just a website" (guideline 4.2).
 
 ### 5. Launch (outline)
