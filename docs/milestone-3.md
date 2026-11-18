@@ -35,7 +35,7 @@ Out of scope:
 | T1. Instrument format and pipeline | Done |  |
 | T2. Instruments from a manifest | Done |  |
 | T3. Load instruments when they're needed | Done |  |
-| T4. A sound picker for 5 to 8 choices | In progress |  |
+| T4. A sound picker for 5 to 8 choices | Done |  |
 | T5. Your first instruments | Not started |  |
 | T6. Check on the iPhone | Not started |  |
 
@@ -169,7 +169,7 @@ Loading every instrument at Begin listening would make the start slower with eac
 
 | Check | Expected | Result |
 | --- | --- | --- |
-| The Sound fields of a chime, pulse, orbit, drone and texture | Every choice visible, nothing cut off, easy to tap | |
+| The Sound fields of a chime, pulse, orbit, drone and texture | Every choice visible, nothing cut off, easy to tap | Passed |
 
 **Memory, for T5 and T6:** a decoded note takes about 0.9 MB (4.5 s at 48 kHz), so a soft and hard instrument with 21 notes holds about 36 MB once loaded, and 8 of them nearly 300 MB, T6's line. Shorter tails (`maxSeconds`) and letting go of instruments no object uses would bring it down.
 
