@@ -40,7 +40,7 @@ Capacitor first, because it reuses everything already built and keeps the web ve
 | # | Milestone | Status |
 | --- | --- | --- |
 | 1 | Spike: Capacitor shell, audio on a real device, background playback, performance, go/no-go | Done: go with Capacitor ([decision](decisions/0001-capacitor-for-ios.md)) — [spec](milestone-1.md) |
-| 2 | Native fit: heat and frame rate, audio session and interruptions, share sheet, durable saves, rename to Skyloom, icon and splash, lock-screen controls, vertical clips | In progress — [spec](milestone-2.md) |
+| 2 | Native fit: heat and frame rate, audio session and interruptions, share sheet, durable saves, rename to Skyloom, icon and splash, lock-screen controls, vertical clips | Done — [spec](milestone-2.md) |
 | 3 | Your own instruments: sampled instruments for chimes, pulses and orbits, a pipeline for your recordings, loading on demand, a sound picker for 5 to 8 choices | Not started — [spec](milestone-3.md) |
 | 4 | App Store ready: developer account, name, screenshots and preview, privacy policy and label, TestFlight beta, submission | Not started |
 | 5 | Launch: landing page, featuring nomination, community launch, short videos, App Store keywords, review of results | Not started |

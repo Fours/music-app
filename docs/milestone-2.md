@@ -357,5 +357,5 @@ A 9:16 clip option for TikTok, Reels and Shorts.
 
 ## Definition of done
 
-- [ ] All tasks are Done.
-- [ ] The milestone table in [ios-app-plan.md](ios-app-plan.md) is updated.
+- [x] All tasks are Done.
+- [x] The milestone table in [ios-app-plan.md](ios-app-plan.md) is updated.
