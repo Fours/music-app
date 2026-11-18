@@ -10,7 +10,7 @@ import { ORBIT_STEP_NAMES, orbitStepIndex } from '../world/sim'
 import { KIND_COLORS, TEXTURE_COLORS } from '../world/palette'
 import { OCTAVE_MAX, OCTAVE_MIN, baseNote, beadNote, clampBead, harmonyOf, joinBead, splitBead } from '../world/pitch'
 import type { Orbit, WorldObject } from '../world/types'
-import { Segmented, Slider } from './controls'
+import { Segmented, Slider, SoundPicker } from './controls'
 import { FilterField } from './FilterField'
 import { OscillatingSlider } from './OscillatingSlider'
 import { CloseIcon, CopyIcon, MinusIcon, MutedIcon, PlusIcon, ShuffleIcon, SpeakerIcon, TrashIcon } from './icons'
@@ -19,7 +19,7 @@ const pctFmt = (v: number) => `${Math.round(v * 100)}%`
 
 /** A Sound field's choices: the kind's synthesized sounds, then its sampled instruments, marked while their notes load. */
 const soundOptions = (kind: InstrumentKind, loading: string[]) =>
-  soundsFor(kind).map((s) => ({ value: s.id, label: s.label, busy: loading.includes(s.id) }))
+  soundsFor(kind).map((s) => ({ value: s.id, label: s.label, sampled: s.sampled, busy: loading.includes(s.id) }))
 
 /** Orbit Size: the step length it snaps to. */
 const stepFmt = (v: number) => ORBIT_STEP_NAMES[orbitStepIndex(v)]
@@ -86,8 +86,7 @@ export function Inspector() {
       <div className="sheet-body">
         {o.kind === 'drone' && (
           <>
-            <Segmented
-              label="Sound"
+            <SoundPicker
               value={o.timbre}
               onChange={(timbre) => set({ timbre })}
               options={[
@@ -107,8 +106,7 @@ export function Inspector() {
 
         {o.kind === 'chime' && (
           <>
-            <Segmented
-              label="Sound"
+            <SoundPicker
               value={o.sound}
               onChange={(sound) => set({ sound })}
               options={soundOptions('chime', loading)}
@@ -124,8 +122,7 @@ export function Inspector() {
 
         {o.kind === 'pulse' && (
           <>
-            <Segmented
-              label="Sound"
+            <SoundPicker
               value={o.sound}
               onChange={(sound) => set({ sound })}
               options={soundOptions('pulse', loading)}
@@ -143,8 +140,7 @@ export function Inspector() {
 
         {o.kind === 'texture' && (
           <>
-            <Segmented
-              label="Sound"
+            <SoundPicker
               value={o.sound}
               onChange={(sound) => set({ sound })}
               options={[
@@ -198,8 +194,7 @@ function OrbitControls({ o }: { o: Orbit }) {
 
   return (
     <>
-      <Segmented
-        label="Sound"
+      <SoundPicker
         value={o.sound}
         onChange={(sound) => set({ sound })}
         options={soundOptions('orbit', loading)}

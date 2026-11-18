@@ -35,7 +35,7 @@ Out of scope:
 | T1. Instrument format and pipeline | Done |  |
 | T2. Instruments from a manifest | Done |  |
 | T3. Load instruments when they're needed | Done |  |
-| T4. A sound picker for 5 to 8 choices | Not started |  |
+| T4. A sound picker for 5 to 8 choices | In progress |  |
 | T5. Your first instruments | Not started |  |
 | T6. Check on the iPhone | Not started |  |
 
@@ -148,6 +148,30 @@ Loading every instrument at Begin listening would make the start slower with eac
 - Recommendation: a grid of chips that wraps, 3 per row on a phone and 4 on wider screens, in the segmented control's style. Each chip shows the name, plus a small mark for sampled instruments. Choosing a chip changes the sound immediately, as today, so you hear it in the scene.
 - Keep the radio-group semantics, and arrow keys move between chips.
 - Check it with 8 choices on the iPhone 14, the iPad simulator and the desktop.
+
+**What's built.**
+
+- **[SoundPicker](../src/components/controls.tsx)** replaces the Sound field for all five kinds; the orbit's Direction keeps `Segmented`. Chips sit on the segmented control's grey track, and the chosen one is white and raised.
+- **Columns by count, not screen:** the desktop and iPad panel is 340 px wide, narrower inside than the iPhone's bottom sheet, so "3 on a phone, 4 wider" didn't fit the layout. The rows come out even instead: 3 → 3, 4 → 4, 5 and 6 → rows of 3, 7 and 8 → rows of 4 (`ceil(n / ceil(n / 4))`), the same everywhere, at least 72 px a chip.
+- **Names wrap** to a second line instead of being cut or scrolling. The script warns about names over 18 characters and words over 10 letters, which might not fit.
+- **Recorded instruments** have a small waveform mark after the name, kept on the last word's line so it never sits alone or covers the name. While an instrument's notes load, T3's pulsing dot takes its place. Screen readers hear "Kalimba, recorded".
+- **Keyboard:** a radio group. Tab lands on the chosen chip only. Left and Right move and wrap, Up and Down move a row and stop at the edges, Home and End go to the ends. Moving also chooses, as radio buttons do; arrowing past several recorded instruments starts loading each.
+
+**Checks** (with five temporary orbit instruments, so orbits offered 8: Pluck, Music box, Marimba, Celesta, Hammered dulcimer, "Concert harp in a hall" (22 characters, over the limit on purpose), Kalimba and Steel drum; removed afterwards):
+
+- **Desktop** (Chrome, 340 px panel): 2 rows of 4, chips 73 px, nothing scrolls sideways or is cut. Hammered dulcimer and Steel drum take 2 lines, the over-long name 3. Chime and pulse show 3 in a row, drone and texture 4. With an instrument still loading, its chip showed the dot and `aria-busy`.
+- **Phone width** (390 px, the iPhone 14's): 2 rows of 4, chips 85 px, every name on 1 or 2 lines.
+- **iPad simulator** (Safari, iPad Pro 11-inch): 2 rows of 4, nothing cut; tapping Kalimba chose it. This is where a mark wrapping onto a line of its own showed up, now fixed.
+- **Keyboard** (Chrome): Right from Music box chose Marimba; Down from Marimba chose Kalimba and Down again stayed; End chose Steel drum; Right wrapped to Pluck; Up from the first row stayed; Left wrapped to Steel drum; Home then Right chose Music box. Only the chosen chip was in the Tab order, and Shift+Tab, Tab came back to it.
+- **Script:** "Concert harp in a hall" and "Glockenspielerei" each got a warning.
+
+**Device results** (iPhone 14):
+
+| Check | Expected | Result |
+| --- | --- | --- |
+| The Sound fields of a chime, pulse, orbit, drone and texture | Every choice visible, nothing cut off, easy to tap | |
+
+**Memory, for T5 and T6:** a decoded note takes about 0.9 MB (4.5 s at 48 kHz), so a soft and hard instrument with 21 notes holds about 36 MB once loaded, and 8 of them nearly 300 MB, T6's line. Shorter tails (`maxSeconds`) and letting go of instruments no object uses would bring it down.
 
 **Done when:** a kind with 8 sounds shows them all without scrolling sideways or cutting off names, on all three screen sizes, and it works with a keyboard.
 

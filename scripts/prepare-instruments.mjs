@@ -80,6 +80,10 @@ const ONSET_LIMIT_MS = 5
 /** Gaps wider than this between recorded notes get a warning. */
 const MAX_GAP = 4
 const BITRATE = '96k'
+/** Longest name that fits on two lines of a Sound field chip (about 72 px wide). */
+const MAX_NAME = 18
+/** Longest word that fits on one line of a chip. */
+const MAX_WORD = 10
 
 /** The pitches each kind plays: [lowest, highest] MIDI note. `core` is what should be recorded. */
 const RANGES = {
@@ -231,6 +235,9 @@ function readSpec(dir, id) {
   }
   for (const key of Object.keys(spec)) if (!OPTIONS.includes(key)) fail(`${id}/instrument.json: unknown option "${key}"`)
   if (typeof spec.name !== 'string' || !spec.name.trim()) fail(`${id}/instrument.json: needs a name`)
+  if (spec.name.length > MAX_NAME) warn(`${id}: the name "${spec.name}" is longer than ${MAX_NAME} characters and may not fit on two lines in the Sound field`)
+  const longWord = spec.name.split(' ').find((w) => w.length > MAX_WORD)
+  if (longWord) warn(`${id}: "${longWord}" is longer than ${MAX_WORD} letters and may break mid-word in the Sound field`)
   if (!Array.isArray(spec.kinds) || !spec.kinds.length || spec.kinds.some((k) => !KINDS.includes(k)))
     fail(`${id}/instrument.json: kinds must list some of ${KINDS.join(', ')}`)
   if (!(spec.release > 0)) fail(`${id}/instrument.json: release must be a number of seconds above 0`)

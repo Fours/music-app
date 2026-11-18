@@ -94,6 +94,12 @@ export const WaveIcon = (p: P) => (
     <path d="M3 12c1.5-4.5 3-6 4.5-6S10.5 7.5 12 12s3 6 4.5 6 3-1.5 4.5-6" />
   </svg>
 )
+/** A small waveform: marks a recorded instrument in the Sound field. */
+export const RecordedIcon = (p: P) => (
+  <svg {...base({ width: 9, height: 9, strokeWidth: 2.4, ...p })}>
+    <path d="M3 10v4M7.5 6v12M12 3v18M16.5 7v10M21 10v4" />
+  </svg>
+)
 export const MinusIcon = (p: P) => (
   <svg {...base(p)}>
     <path d="M6 12h12" />
