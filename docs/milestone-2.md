@@ -16,8 +16,8 @@ Out of scope (later milestones):
 
 | Item | Milestone |
 | --- | --- |
-| Developer account, App Store listing, TestFlight, testing on older devices | 3 |
-| Landing page and launch | 4 |
+| Developer account, App Store listing, TestFlight, testing on older devices | 4 |
+| Landing page and launch | 5 |
 
 Native code goes behind `Capacitor.isNativePlatform()` so the web build is unchanged unless a task says otherwise.
 

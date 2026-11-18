@@ -24,7 +24,7 @@ Checks done on 2026-11-13:
 - **Web:** no music or ambient product uses the name. A small Minecraft mod does.
 - **Domains:** skyloom.com and skyloom.app are taken. Use a subdomain of kylewillett.com or a variation such as skyloommusic.com.
 
-Still to do: a quick look in [WIPO's Global Brand Database](https://branddb.wipo.int) for registrations outside the US, and reserving the name in App Store Connect as early as milestone 3 allows. App Store search doesn't show reserved but unreleased names, so this is the final check. Names that were considered and rejected: Skychord (a dormant registration owned by a synth and drone-machine maker), Windharp, Small Weather, Driftglass and Ambiloom.
+Still to do: a quick look in [WIPO's Global Brand Database](https://branddb.wipo.int) for registrations outside the US, and reserving the name in App Store Connect as early as milestone 4 allows. App Store search doesn't show reserved but unreleased names, so this is the final check. Names that were considered and rejected: Skychord (a dormant registration owned by a synth and drone-machine maker), Windharp, Small Weather, Driftglass and Ambiloom.
 
 ## Approach
 
@@ -41,8 +41,9 @@ Capacitor first, because it reuses everything already built and keeps the web ve
 | --- | --- | --- |
 | 1 | Spike: Capacitor shell, audio on a real device, background playback, performance, go/no-go | Done: go with Capacitor ([decision](decisions/0001-capacitor-for-ios.md)) — [spec](milestone-1.md) |
 | 2 | Native fit: heat and frame rate, audio session and interruptions, share sheet, durable saves, rename to Skyloom, icon and splash, lock-screen controls, vertical clips | In progress — [spec](milestone-2.md) |
-| 3 | App Store ready: developer account, name, screenshots and preview, privacy policy and label, TestFlight beta, submission | Not started |
-| 4 | Launch: landing page, featuring nomination, community launch, short videos, App Store keywords, review of results | Not started |
+| 3 | Your own instruments: sampled instruments for chimes, pulses and orbits, a pipeline for your recordings, loading on demand, a sound picker for 5 to 8 choices | Not started — [spec](milestone-3.md) |
+| 4 | App Store ready: developer account, name, screenshots and preview, privacy policy and label, TestFlight beta, submission | Not started |
+| 5 | Launch: landing page, featuring nomination, community launch, short videos, App Store keywords, review of results | Not started |
 
 ### 2. Native fit (outline)
 
@@ -67,7 +68,7 @@ Milestone 1 found the audio engine solid and the drawing and audio lifecycle wea
 - Remove the temporary in-app preview's "Saving to Photos and Files is coming" note once the share sheet is in.
 - Keep the web build working, with native code behind a `Capacitor.isNativePlatform()` check.
 
-### 3. App Store ready (outline)
+### 4. App Store ready (outline)
 
 - Apple Developer Program ($99 a year) and the bundle ID. Reserve "Skyloom: Ambient Music Maker" in App Store Connect as soon as the account exists.
 - Screenshots for the required iPhone and iPad sizes, and an app preview video made with Clip.
@@ -75,7 +76,7 @@ Milestone 1 found the audio engine solid and the drawing and audio lifecycle wea
 - TestFlight beta with 10–20 people, ideally from the iOS music community. Include at least one iPhone XS or XR and one 6th-generation iPad, the oldest devices iOS 17 supports, since only an iPhone 14 has been tested.
 - Review notes that point out what's native (audio session, share sheet, lock-screen controls), because Apple rejects apps that are "just a website" (guideline 4.2).
 
-### 4. Launch (outline)
+### 5. Launch (outline)
 
 - A landing page on the web version with a Smart App Banner and the App Store link.
 - Featuring nomination in App Store Connect a few weeks before release.

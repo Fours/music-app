@@ -16,7 +16,7 @@ Skyloom (Drift in the code) is a web app: React for the interface, a 2D canvas f
 
 - **Minimum iOS version: 17.0.** Vite builds for Safari 16.4 and later, so anything older could install the app and show a blank page. iOS 17 adds little risk over 16.4 and drops the iPhone 8 and X, whose A11 chips would likely struggle given the frame rates below.
 - **Supported devices:** everything that runs iOS 17. The oldest are the iPhone XS, XS Max and XR (A12, 2018), the iPhone SE (2nd generation), and the iPad (6th generation, A10).
-- **Tested device:** only an iPhone 14 (A15, iOS 27.2). Older iPhones and every iPad are untested. Milestone 3 should recruit TestFlight testers with an iPhone XS or XR and a 6th-generation iPad.
+- **Tested device:** only an iPhone 14 (A15, iOS 27.2). Older iPhones and every iPad are untested. Milestone 4 (App Store ready) should recruit TestFlight testers with an iPhone XS or XR and a 6th-generation iPad.
 
 ## Evidence
 
