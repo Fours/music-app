@@ -30,7 +30,7 @@ Native code goes behind `Capacitor.isNativePlatform()` so the web build is uncha
 | T3. Share sheet for clips and recordings | Done |  |
 | T4. Durable saves | Done |  |
 | T5. Rename the app to Skyloom | Done |  |
-| T6. App icon, splash, safe areas, haptics | In progress |  |
+| T6. App icon, splash, safe areas, haptics | Done |  |
 | T7. Lock-screen controls | Not started |  |
 | T8. Vertical clips | Not started |  |
 
@@ -272,12 +272,12 @@ Replace Capacitor's default icon and launch screen, check safe areas and the sta
 
 | Check | Expected | Result |
 | --- | --- | --- |
-| Home screen | The Skyloom icon, not Capacitor's | |
-| Home screen set to Dark, then Tinted (long-press → Edit → Customize) | The dark and tinted icons | |
-| Launch, phone in dark mode | Paper sheet, dark status-bar text, no flash of black or white | |
-| Turn the phone sideways | Stays portrait | |
-| Tap a shape in the tray, drag one onto the sky, Duplicate | A light tap each time | |
-| Tap a shape past its limit | No tap, just the "is plenty" note | |
+| Home screen | The Skyloom icon, not Capacitor's | Passed |
+| Home screen set to Dark, then Tinted (long-press → Edit → Customize) | The dark and tinted icons | Passed |
+| Launch, phone in dark mode | Paper sheet, dark status-bar text, no flash of black or white | Passed |
+| Turn the phone sideways | Stays portrait | Passed |
+| Tap a shape in the tray, drag one onto the sky, Duplicate | A light tap each time | Passed |
+| Tap a shape past its limit | No tap, just the "is plenty" note | Passed |
 
 **Not done:** `UIRequiredDeviceCapabilities` still lists `armv7` from Capacitor's template. Tidy it with the other App Store settings in milestone 4.
 
