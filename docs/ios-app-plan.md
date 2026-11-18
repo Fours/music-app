@@ -42,7 +42,7 @@ Capacitor first, because it reuses everything already built and keeps the web ve
 | 1 | Spike: Capacitor shell, audio on a real device, background playback, performance, go/no-go | Done: go with Capacitor ([decision](decisions/0001-capacitor-for-ios.md)) — [spec](milestone-1.md) |
 | 2 | Native fit: heat and frame rate, audio session and interruptions, share sheet, durable saves, rename to Skyloom, icon and splash, lock-screen controls, vertical clips | Done — [spec](milestone-2.md) |
 | 3 | Your own instruments: sampled instruments for chimes, pulses and orbits, a pipeline for your recordings, loading on demand, a sound picker for 5 to 8 choices | In progress — [spec](milestone-3.md) |
-| 4 | App Store ready: developer account, name, screenshots and preview, privacy policy and label, TestFlight beta, submission | Not started |
+| 4 | App Store ready: saved scenes, developer account, name, screenshots and preview, privacy policy and label, TestFlight beta, submission | Not started |
 | 5 | Launch: landing page, featuring nomination, community launch, short videos, App Store keywords, review of results | Not started |
 
 ### 2. Native fit (outline)
@@ -70,6 +70,12 @@ Milestone 1 found the audio engine solid and the drawing and audio lifecycle wea
 
 ### 4. App Store ready (outline)
 
+- **Saved scenes, first.** Today only one scene is autosaved, so choosing a mood or Empty sky replaces whatever you'd built, with no way back. Reviewers and first users would trip over that. Proposed design (found on the iPhone during milestone 3):
+  - Saving is automatic. Changing a mood or Empty sky makes it one of your scenes, and every later edit saves to it. There's no Save button. Choosing a mood or an empty sky without changing it saves nothing.
+  - Names: an edited mood takes the mood's name and a number ("Rain on Glass 2"); an empty sky starts as "Untitled 1". The top bar shows that name instead of "(edited)".
+  - The Scenes sheet gets "Your scenes" above the moods, most recently edited first. Each card has a small drawing of the scene's sky, its name and when it was last edited, and the playing one is marked.
+  - Each card has a ••• menu with Rename, Duplicate and Delete, the same on phone and desktop. Delete happens at once, with "Deleted … · Undo" for a few seconds instead of a confirmation.
+  - The current single autosave becomes the first saved scene, so nothing is lost. No limit in practice (a scene is a few KB). No sync between devices: that needs accounts, which would cost the "no data collected" label.
 - Apple Developer Program ($99 a year) and the bundle ID. Reserve "Skyloom: Ambient Music Maker" in App Store Connect as soon as the account exists.
 - Screenshots for the required iPhone and iPad sizes, and an app preview video made with Clip.
 - Privacy policy page and the App Privacy label. With no analytics or accounts, "no data collected" may be possible, which reviewers and users both like.
