@@ -136,7 +136,8 @@ Loading every instrument at Begin listening would make the start slower with eac
   \*The built-in browser can't throttle, so the page's `fetch` was slowed for the test: 562 ms per request and 180 KB/s shared by every request in flight. The first sound waits for the pulse's next beat after the first note.
 - **Picker:** while the test instrument loaded, its option showed the dot and `aria-busy`; afterwards neither.
 - **Failures:** with every test note blocked, the chime fell back to Bell, with the message; unblocked, choosing it again loaded all 42 notes. With the soft notes blocked, a pulse played on from the hard layer (21 loaded, 21 failed). With the test notes blocked at Begin, Begin finished, and the pulse fell back to Mallet, with the message.
-- **Simulator** (iPhone 17 Pro): Begin with Open Sea (no sampled sounds) finishes and plays. Switching to Rain on Glass there didn't take (the simulator's taps lagged), so on-demand loading in the app is left to T6, where the table already asks for it. It uses the same fetch and decode as Begin.
+- **Simulator** (iPhone 17 Pro): Begin with Open Sea (no sampled sounds) finishes and plays. Switching to Rain on Glass there didn't take (the simulator's taps lagged).
+- **iPhone 14** (T2 and T3 together): checked out. The milestone 2 save loaded with the same objects and sounds. After Begin with a scene without Felt piano, switching to Rain on Glass brought the piano in straight away. Felt piano sounded as before, switching a pulse to it and back had no glitch, and Begin with Rain on Glass already loaded started as quickly as before.
 
 **Done when:** Begin listening loads no more than the scene needs, and choosing a sound that isn't loaded yet plays it within a second on the iPhone. Check that with the network throttled to Fast 3G on the web.
 
