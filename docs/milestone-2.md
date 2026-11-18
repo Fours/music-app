@@ -31,7 +31,7 @@ Native code goes behind `Capacitor.isNativePlatform()` so the web build is uncha
 | T4. Durable saves | Done |  |
 | T5. Rename the app to Skyloom | Done |  |
 | T6. App icon, splash, safe areas, haptics | Done |  |
-| T7. Lock-screen controls | In progress |  |
+| T7. Lock-screen controls | Done |  |
 | T8. Vertical clips | Not started |  |
 
 ### T1. Heat and frame rate
@@ -306,16 +306,16 @@ Play and pause and the scene name on the lock screen and in Control Center. Skyl
 
 | Check | Expected | Result |
 | --- | --- | --- |
-| Lock screen while playing | Scene name, Skyloom, the icon, a pause button | |
-| Pause from the lock screen | Pauses; the button shows play | |
-| Play from the lock screen: right away, after 1 minute, after 10 minutes | Plays | |
-| Control Center | Same as the lock screen | |
-| AirPods double-tap or stem press | Toggles play and pause | |
-| Change scene in the app | The title follows | |
-| Another app plays, a call, AirPods taken out | As in T2; the card shows the right state | |
-| Open the app with a podcast playing | The podcast keeps playing | |
+| Lock screen while playing | Scene name, Skyloom, the icon, a pause button | Passed |
+| Pause from the lock screen | Pauses; the button shows play | Passed |
+| Play from the lock screen: right away, after 1 minute, after 10 minutes | Plays | Passed |
+| Control Center | Same as the lock screen | Passed |
+| AirPods double-tap or stem press | Toggles play and pause | Passed |
+| Change scene in the app | The title follows | Passed |
+| Another app plays, a call, AirPods taken out | As in T2; the card shows the right state | Passed |
+| Open the app with a podcast playing | The podcast keeps playing | Didn't pass. Accepted: Skyloom doesn't mix with other audio anyway ([0002](decisions/0002-no-mixing-with-other-audio.md)) |
 
-If the artwork doesn't show on the device either, or Play doesn't restart the sound after a long pause, I'll revisit the native plugin, or keep the audio running quietly while paused (open question).
+On the device the artwork shows, and Play restarts the sound even after 10 minutes paused, so neither fallback (the native plugin, or keeping the audio running while paused) is needed.
 
 **Not done:** a LIVE label instead of the empty time bar. WebKit doesn't accept an endless duration.
 
