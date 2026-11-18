@@ -46,10 +46,10 @@ Decide what one instrument is on disk, and write the script that prepares it.
 - **Source:** `samples-src/instruments/<id>/`, one file per note, named by note (for example `c3.wav`, `e3.wav`, `g#3.wav`), plus a small `instrument.json` with the name shown in the app, which object kinds it's offered for (chime, pulse, orbit), a level trim, and its release time. Like the textures' sources, the originals aren't committed.
 - **Script:** `scripts/prepare-instruments.mjs` trims the silence before each note, so notes start on the beat. It fades the tails, matches levels across the notes, and writes the files to `public/samples/instruments/<id>/` along with one manifest for all instruments.
 - **File format:** to decide with a measurement. AAC (`.m4a`, as the textures use) is about a tenth the size of WAV but adds silence at the start of each file. That silence is harmless in a loop but makes struck notes late. Either trim it in the script and check the onset, or keep WAV for notes and accept the size.
-- **Note spacing:** chimes play D4 to A6 and pulses D3 to G5. Orbit steps can reach two octaves either side of a base note between D3 and D5 ([pitch.ts](../src/world/pitch.ts)), so about D1 to D7. Recommend recordings every 3 or 4 semitones from about C2 to C7, accepting that the extreme orbit steps get repitched further. The script warns about gaps wider than that.
+- **Note spacing:** chimes play D4 to A6 and pulses D3 to G5. Orbit steps can reach two octaves either side of a base note between D3 and D5 ([pitch.ts](../src/world/pitch.ts)), so about D1 to D7. Recommend recordings every 3 or 4 semitones from about C2 to C7, accepting that the extreme orbit steps get repitched further. The script warns about gaps wider than that. **Revised after T4:** every 6 semitones, F3 to F6 ([0003](decisions/0003-instrument-format.md)).
 - Write a decision record for the format and the spacing.
 
-**What's built.** The format and its reasons are in [0003](decisions/0003-instrument-format.md): AAC at 96 kbps, 48 kHz, mono, notes every 3 or 4 semitones, and optional soft and hard layers.
+**What's built.** The format and its reasons are in [0003](decisions/0003-instrument-format.md): AAC at 96 kbps, 48 kHz, mono, notes every 3 or 4 semitones (every 6 since T4), and optional soft and hard layers.
 
 - **Source:** `samples-src/instruments/<id>/` holds the notes (`c3.wav`, `g#3.wav`, `eb4.aif`; any format ffmpeg reads) and `instrument.json`: `name`, `kinds`, `release`, and optionally `gainDb`, `softDb`, `fill`, `maxSeconds`, `onsetDb` and `stereo`. The options are described at the top of [prepare-instruments.mjs](../scripts/prepare-instruments.mjs).
 - **Soft and hard:** `c3-soft.wav` and `c3-hard.wav`. Within a layer every note is set to the same loudness; the soft layer sits below the hard one by the median gap that was recorded (or `softDb`). A note recorded in one layer only is made from the other, unless `fill` is false.
@@ -171,14 +171,16 @@ Loading every instrument at Begin listening would make the start slower with eac
 | --- | --- | --- |
 | The Sound fields of a chime, pulse, orbit, drone and texture | Every choice visible, nothing cut off, easy to tap | Passed |
 
-**Memory, for T5 and T6:** a decoded note takes about 0.9 MB (4.5 s at 48 kHz), so a soft and hard instrument with 21 notes holds about 36 MB once loaded, and 8 of them nearly 300 MB, T6's line. Shorter tails (`maxSeconds`) and letting go of instruments no object uses would bring it down.
+**Memory, for T5 and T6:** a decoded note takes about 0.9 MB (4.5 s at 48 kHz), so a soft and hard instrument with 21 notes holds about 36 MB once loaded, and 8 of them nearly 300 MB, T6's line. Shorter tails (`maxSeconds`) and letting go of instruments no object uses would bring it down. **Settled after T4:** notes every 6 semitones ([0003](decisions/0003-instrument-format.md)) make it 14 notes and about 12 MB per instrument, about 100 MB for 8. The script's spacing and range warnings changed to match.
 
 **Done when:** a kind with 8 sounds shows them all without scrolling sideways or cutting off names, on all three screen sizes, and it works with a keyboard.
 
 ### T5. Your first instruments
 
+- **What to record,** for each instrument: F3, B3, F4, B4, F5, B5 and F6, played soft and played hard, 14 files named like `f3-soft.wav` and `b3-hard.wav` ([0003](decisions/0003-instrument-format.md)). Let each note ring out fully, with a moment of silence before it. Any format and sample rate ffmpeg reads; WAV or AIFF at 24-bit is best.
 - Prepare your recordings with the T1 script and add them.
-- For each instrument, check its tuning against the synthesized sounds across the scale range, and its level against the other sounds in a busy scene.
+- For each instrument, check its tuning against the synthesized sounds across the scale range, and its level against the other sounds in a busy scene. Listen between recordings too (A3, D4, A4): if a stretch sounds wrong, record one more note there.
+- Judge by ear the two rules T2 left open: Length scaling the release of sampled orbit instruments, and strength still scaling the level within a layer.
 - Add each to [CREDITS.md](../CREDITS.md) with where it came from. If any samples come from a pack or library rather than your own recordings, check that its licence allows them in a paid app.
 - Optional: change one or two scenes to use the new sounds, so they're heard without opening the picker.
 

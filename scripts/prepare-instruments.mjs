@@ -77,19 +77,29 @@ const FADE_OUT = 0.3
 const TAIL_DB = -60
 /** The onset must be within this of the start of the written file. */
 const ONSET_LIMIT_MS = 5
-/** Gaps wider than this between recorded notes get a warning. */
-const MAX_GAP = 4
+/**
+ * Gaps wider than this between recorded notes get a warning. Every 6
+ * semitones, no note is played more than 3 from a recording (decision 0003).
+ */
+const MAX_GAP = 6
+/** How far past the outermost recorded note a kind's range may reach before it gets a warning. */
+const MAX_REACH = 4
 const BITRATE = '96k'
 /** Longest name that fits on two lines of a Sound field chip (about 72 px wide). */
 const MAX_NAME = 18
 /** Longest word that fits on one line of a chip. */
 const MAX_WORD = 10
 
-/** The pitches each kind plays: [lowest, highest] MIDI note. `core` is what should be recorded. */
+/**
+ * The pitches each kind plays: [lowest, highest] MIDI note. `core` is what the
+ * recordings should cover; F3, B3, F4, B4, F5, B5, F6 covers all three.
+ */
 const RANGES = {
   chime: { all: [62, 93], core: [62, 93] }, // D4 to A6
   pulse: { all: [50, 79], core: [50, 79] }, // D3 to G5
-  orbit: { all: [26, 98], core: [36, 96] }, // D1 to D7; record C2 to C7
+  // Steps reach two octaves either side of a base note between D3 and D5, so
+  // D1 to D7; most stay between D3 and D6, and the outer ones are repitched further.
+  orbit: { all: [26, 98], core: [50, 86] },
 }
 const KINDS = Object.keys(RANGES)
 const OPTIONS = ['name', 'kinds', 'release', 'gainDb', 'softDb', 'fill', 'maxSeconds', 'onsetDb', 'stereo']
@@ -270,19 +280,25 @@ function readNotes(dir, id) {
 function checkSpacing(midis, kinds, label) {
   for (let i = 1; i < midis.length; i++) {
     const gap = midis[i] - midis[i - 1]
-    if (gap > MAX_GAP) warn(`${label}: ${gap} semitones from ${noteName(midis[i - 1])} to ${noteName(midis[i])} (record every ${MAX_GAP - 1} or ${MAX_GAP})`)
+    if (gap > MAX_GAP) warn(`${label}: ${gap} semitones from ${noteName(midis[i - 1])} to ${noteName(midis[i])} (record at least every ${MAX_GAP})`)
   }
   const core = [Math.min(...kinds.map((k) => RANGES[k].core[0])), Math.max(...kinds.map((k) => RANGES[k].core[1]))]
   const all = [Math.min(...kinds.map((k) => RANGES[k].all[0])), Math.max(...kinds.map((k) => RANGES[k].all[1]))]
   const who = kinds.length > 1 ? `${kinds.slice(0, -1).join(', ')} and ${kinds.at(-1)}s` : `${kinds[0]}s`
-  if (midis[0] > core[0] + 2) warn(`${label}: lowest note ${noteName(midis[0])}, but ${who} play down to ${noteName(core[0])}`)
-  if (midis.at(-1) < core[1] - 2) warn(`${label}: highest note ${noteName(midis.at(-1))}, but ${who} play up to ${noteName(core[1])}`)
-  let furthest = { by: 0, at: all[0] }
-  for (let m = all[0]; m <= all[1]; m++) {
-    const by = Math.min(...midis.map((s) => Math.abs(s - m)))
-    if (by > furthest.by) furthest = { by, at: m }
+  if (midis[0] > core[0] + MAX_REACH) warn(`${label}: lowest note ${noteName(midis[0])}, but ${who} play down to ${noteName(core[0])}`)
+  if (midis.at(-1) < core[1] - MAX_REACH) warn(`${label}: highest note ${noteName(midis.at(-1))}, but ${who} play up to ${noteName(core[1])}`)
+  const furthest = ([lo, hi]) => {
+    let worst = { by: 0, at: lo }
+    for (let m = lo; m <= hi; m++) {
+      const by = Math.min(...midis.map((s) => Math.abs(s - m)))
+      if (by > worst.by) worst = { by, at: m }
+    }
+    return `${worst.by} semitones (${noteName(worst.at)})`
   }
-  return `furthest repitch ${furthest.by} semitones (${noteName(furthest.at)}, of ${noteName(all[0])} to ${noteName(all[1])})`
+  return (
+    `furthest repitch ${furthest(core)} from ${noteName(core[0])} to ${noteName(core[1])}` +
+    (all[0] < core[0] || all[1] > core[1] ? `, ${furthest(all)} out to ${noteName(all[0])} and ${noteName(all[1])}` : '')
+  )
 }
 
 function prepare({ id, spec, layers }) {
