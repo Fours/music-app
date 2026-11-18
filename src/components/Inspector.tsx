@@ -1,5 +1,7 @@
 import { useRef } from 'react'
 import { app } from '../app/controller'
+import type { InstrumentKind } from '../audio/instruments'
+import { soundsFor } from '../audio/sounds'
 import { attackTime } from '../audio/voices'
 import { useStore } from '../app/store'
 import { noteName } from '../music/theory'
@@ -14,6 +16,9 @@ import { OscillatingSlider } from './OscillatingSlider'
 import { CloseIcon, CopyIcon, MinusIcon, MutedIcon, PlusIcon, ShuffleIcon, SpeakerIcon, TrashIcon } from './icons'
 
 const pctFmt = (v: number) => `${Math.round(v * 100)}%`
+
+/** A Sound field's choices: the kind's synthesized sounds, then its sampled instruments. */
+const soundOptions = (kind: InstrumentKind) => soundsFor(kind).map((s) => ({ value: s.id, label: s.label }))
 
 /** Orbit Size: the step length it snaps to. */
 const stepFmt = (v: number) => ORBIT_STEP_NAMES[orbitStepIndex(v)]
@@ -104,11 +109,7 @@ export function Inspector() {
               label="Sound"
               value={o.sound}
               onChange={(sound) => set({ sound })}
-              options={[
-                { value: 'bell', label: 'Bell' },
-                { value: 'piano', label: 'Felt piano' },
-                { value: 'glass', label: 'Glass' },
-              ]}
+              options={soundOptions('chime')}
             />
             <VolumeField o={o} />
             <AttackSlider value={o.attack} onChange={(attack) => set({ attack })} />
@@ -125,11 +126,7 @@ export function Inspector() {
               label="Sound"
               value={o.sound}
               onChange={(sound) => set({ sound })}
-              options={[
-                { value: 'mallet', label: 'Mallet' },
-                { value: 'soft', label: 'Soft' },
-                { value: 'piano', label: 'Felt piano' },
-              ]}
+              options={soundOptions('pulse')}
             />
             <VolumeField o={o} />
             <AttackSlider value={o.attack} onChange={(attack) => set({ attack })} />
@@ -202,11 +199,7 @@ function OrbitControls({ o }: { o: Orbit }) {
         label="Sound"
         value={o.sound}
         onChange={(sound) => set({ sound })}
-        options={[
-          { value: 'pluck', label: 'Pluck' },
-          { value: 'musicbox', label: 'Music box' },
-          { value: 'marimba', label: 'Marimba' },
-        ]}
+        options={soundOptions('orbit')}
       />
       <div className="field">
         <div className="field-head">

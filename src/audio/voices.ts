@@ -2,6 +2,8 @@ import * as Tone from 'tone'
 import { midiToFreq, type Harmony } from '../music/theory'
 import { OPEN_FILTER, cutoffHz, resonanceDb } from '../world/filter'
 import { baseNote, beadNote } from '../world/pitch'
+import { PLAYBACK_GAIN_DB, type Instrument, type LayerName } from './instruments'
+import { sampledInstrument } from './sounds'
 import { TEXTURE_LOOPS } from './texture-loops'
 import type { Chime, Drone, FilterSettings, Orbit, Pulse, SoundEvent, Texture, WorldObject } from '../world/types'
 
@@ -189,7 +191,73 @@ class DroneVoice implements Voice {
 
 // ----------------------------------------------------- struck instruments
 
-type Struck = Tone.PolySynth | Tone.Sampler
+/**
+ * Which layer of a sampled instrument a strike plays, from how hard it is
+ * (0–1). The only place that decides, so a later Soft, Hard or Auto setting
+ * changes just this. Chimes strike at 0.35 to 0.95 with what hits them, orbits
+ * at 0.55 to 0.8 at random, and pulses always at 0.7, so between the two
+ * thresholds it's a random choice weighted by strength: orbits and pulses get
+ * a mix, and chimes follow how hard they're hit.
+ */
+export function pickLayer(layers: LayerName[], velocity: number): LayerName {
+  if (layers.length === 1) return layers[0]
+  const SOFT_BELOW = 0.45
+  const HARD_ABOVE = 0.8
+  const hard = velocity <= SOFT_BELOW ? 0 : velocity >= HARD_ABOVE ? 1 : (velocity - SOFT_BELOW) / (HARD_ABOVE - SOFT_BELOW)
+  return Math.random() < hard ? 'hard' : 'soft'
+}
+
+/**
+ * A sampled instrument from the manifest (src/audio/instruments.ts): one
+ * Tone.Sampler per layer, each repitching its nearest recorded note. Each
+ * strike plays one layer, and its strength still scales the level within it.
+ */
+class Sampled {
+  private output = new Tone.Gain(1)
+  private layers: { name: LayerName; sampler: Tone.Sampler }[]
+  private fullRelease: number
+
+  constructor(inst: Instrument, buffers: Record<string, Tone.ToneAudioBuffer>, length?: number) {
+    this.fullRelease = inst.release
+    this.layers = inst.layers.map((layer) => {
+      const urls = Object.fromEntries(Object.entries(layer.notes).map(([note, file]) => [note, buffers[file]]))
+      const sampler = new Tone.Sampler({ urls, release: inst.release, volume: PLAYBACK_GAIN_DB })
+      sampler.connect(this.output)
+      return { name: layer.name, sampler }
+    })
+    this.setLength(length)
+  }
+
+  set attack(seconds: number) {
+    for (const l of this.layers) l.sampler.attack = seconds
+  }
+
+  /** An orbit's Length: from a quarter of the instrument's release at Short to all of it at Ringing. */
+  setLength(length: number | undefined) {
+    const release = length === undefined ? this.fullRelease : this.fullRelease * (0.25 + 0.75 * length)
+    for (const l of this.layers) l.sampler.release = release
+  }
+
+  triggerAttackRelease(freq: number, duration: number, time: number, velocity: number) {
+    const name = pickLayer(
+      this.layers.map((l) => l.name),
+      velocity,
+    )
+    this.layers.find((l) => l.name === name)!.sampler.triggerAttackRelease(freq, duration, time, velocity)
+  }
+
+  connect(destination: Tone.InputNode) {
+    this.output.connect(destination)
+    return this
+  }
+
+  dispose() {
+    for (const l of this.layers) l.sampler.dispose()
+    this.output.dispose()
+  }
+}
+
+type Struck = Tone.PolySynth | Sampled
 
 /** Attack slider (0–1) → seconds. Squared so the low end keeps fine control. */
 export const attackTime = (a = 0) => a * a * 2
@@ -200,18 +268,10 @@ const STRUCK_ATTACK = new WeakMap<Struck, { base: number; fm: boolean }>()
 function setAttack(inst: Struck, a: number) {
   const { base, fm } = STRUCK_ATTACK.get(inst) ?? { base: 0, fm: false }
   const attack = Math.max(base, attackTime(a))
-  if (inst instanceof Tone.Sampler) inst.attack = attack
+  if (inst instanceof Sampled) inst.attack = attack
   // An FM bell's brightness has its own envelope; swell it too, or the strike still clicks.
   else if (fm) (inst as unknown as Tone.PolySynth<Tone.FMSynth>).set({ envelope: { attack }, modulationEnvelope: { attack } })
   else inst.set({ envelope: { attack } })
-}
-
-function piano(buses: Buses): Tone.Sampler {
-  const b = buses.buffers
-  return new Tone.Sampler({
-    urls: { C3: b['piano-c3.wav'], C4: b['piano-c4.wav'], C5: b['piano-c5.wav'] },
-    release: 1.2,
-  })
 }
 
 function bell(decay: number, harmonicity: number, index: number): Tone.PolySynth {
@@ -227,13 +287,17 @@ function bell(decay: number, harmonicity: number, index: number): Tone.PolySynth
   return inst
 }
 
-function makeStruck(sound: string, buses: Buses, attack: number, length = 0.5): Struck {
-  const decay = 0.25 + length * 2.2
+/** `length` is an orbit's Length (0–1); chimes and pulses leave it out. */
+function makeStruck(sound: string, buses: Buses, attack: number, length?: number): Struck {
+  const decay = 0.25 + (length ?? 0.5) * 2.2
+  const sampled = sampledInstrument(sound)
   let inst: Struck
+  if (sampled) {
+    inst = new Sampled(sampled, buses.buffers, length)
+    setAttack(inst, attack)
+    return inst
+  }
   switch (sound) {
-    case 'piano':
-      inst = piano(buses)
-      break
     case 'bell':
       inst = bell(2.6, 3.01, 11)
       inst.volume.value = 5
@@ -364,12 +428,15 @@ class OrbitVoice implements Voice {
   update(o: WorldObject, _h: Harmony, live: Live) {
     const orbit = o as Orbit
     if (Math.abs(orbit.length - this.length) > 0.02) {
-      // Note length lives in the envelope, so swap in a freshly built instrument.
       this.length = orbit.length
-      const old = this.inst
-      this.inst = this.ch.own(makeStruck(this.sound, this.buses, this.attack, orbit.length))
-      this.inst.connect(this.filter)
-      window.setTimeout(() => old.dispose(), 4000)
+      if (this.inst instanceof Sampled) this.inst.setLength(orbit.length)
+      else {
+        // A synthesized note's length lives in its envelope, so swap in a freshly built instrument.
+        const old = this.inst
+        this.inst = this.ch.own(makeStruck(this.sound, this.buses, this.attack, orbit.length))
+        this.inst.connect(this.filter)
+        window.setTimeout(() => old.dispose(), 4000)
+      }
     }
     this.attack = syncAttack(this.inst, orbit.attack, this.attack)
     ramp(this.filter.frequency, 1400 + orbit.x * 4200, 0.3)

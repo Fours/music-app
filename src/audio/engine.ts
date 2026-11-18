@@ -3,6 +3,7 @@ import { hasNativeAudio, nativeSessionLabel } from '../app/native-audio'
 import type { Harmony } from '../music/theory'
 import type { Settings, SoundEvent, WorldObject } from '../world/types'
 import { Tape } from './tape'
+import { INSTRUMENT_FILES } from './sounds'
 import { TEXTURE_LOOPS } from './texture-loops'
 import { createVoice, taper, voiceSignature, withClock, type Buses, type Live, type Voice } from './voices'
 
@@ -11,9 +12,7 @@ const MAKEUP = 2.4
 
 /** Files in public/samples, which are also the keys of `Buses.buffers`. */
 const SAMPLES = [
-  'piano-c3.wav',
-  'piano-c4.wav',
-  'piano-c5.wav',
+  ...INSTRUMENT_FILES,
   ...Object.values(TEXTURE_LOOPS).flatMap((layers) => layers.map((l) => l.file)),
 ]
 

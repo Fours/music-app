@@ -33,7 +33,7 @@ Out of scope:
 | Task | Status | Commit |
 | --- | --- | --- |
 | T1. Instrument format and pipeline | Done |  |
-| T2. Instruments from a manifest | Not started |  |
+| T2. Instruments from a manifest | Done |  |
 | T3. Load instruments when they're needed | Not started |  |
 | T4. A sound picker for 5 to 8 choices | Not started |  |
 | T5. Your first instruments | Not started |  |
@@ -76,6 +76,33 @@ Decide what one instrument is on disk, and write the script that prepares it.
 - Play every sampled instrument `PLAYBACK_GAIN_DB` up, so Felt piano stays at today's level.
 - **Soft and hard layers:** each strike plays one layer. Chimes strike at 0.35 to 0.95, orbits at 0.55 to 0.8 at random, and pulses always at 0.7, so start with soft below 0.45, hard above 0.8, and a random choice weighted by strength in between. Keep the choice in one place: a Soft, Hard or Auto setting on each object may come later.
 - Old saves keep working. An id the registry doesn't know, such as an instrument that was removed, falls back to the kind's default sound instead of making a silent object.
+
+**What's built.**
+
+- **Registry:** [sounds.ts](../src/audio/sounds.ts) lists each kind's sounds, the synthesized ones first and then the manifest's instruments for that kind, in manifest order. `soundsFor(kind)` gives the Sound field its choices. `soundOf(kind, id)` returns the id, or the kind's default (Bell, Mallet, Pluck) when the kind doesn't offer it. An instrument whose id clashes with a synthesized sound is left out, with a console error.
+- **Ids:** chime, pulse and orbit sounds are plain `SoundId` strings in [types.ts](../src/world/types.ts). Drone timbres and textures keep their unions, since they aren't in the manifest.
+- **Unknown ids:** `loadScene` runs every object through `checkSounds`, so saves, presets and anything loaded later get a sound their kind offers. An unknown id quietly becomes the default, and the next autosave stores that.
+- **Playing:** [voices.ts](../src/audio/voices.ts) builds a `Sampled` instrument for any sound in the manifest: one `Tone.Sampler` per layer, with the instrument's release, played `PLAYBACK_GAIN_DB` (6.6 dB) up. Attack works as before, set on every layer. A strike's strength picks the layer through `pickLayer` (soft below 0.45, hard above 0.8, weighted at random in between), the only place that decides. Within a layer, strength still scales the level, as Felt piano did.
+- **Length (decided):** for a sampled orbit instrument, Length scales the release, from a quarter of the instrument's release at Short to all of it at Ringing. The orbit already holds each note longer as Length goes up. Changing it sets the release on the samplers rather than rebuilding them. To be checked by ear once real instruments are in (T5).
+- **Loading:** Begin loads every file in the manifest along with the textures (T3 makes that lazy). The old `piano-*.wav` files are gone (630 KB), and [render-samples.mjs](../scripts/render-samples.mjs) only writes the piano's 48 kHz sources.
+- **Picker:** the three Sound fields take their choices from the registry. With only Felt piano sampled, chimes offer Bell, Glass, Felt piano and pulses Mallet, Soft, Felt piano (Felt piano moved to the end).
+
+**Checks:**
+
+- **Felt piano against the old files**, rendered offline in the browser through a Tone.Sampler each way (strength 0.7, level over the first 400 ms):
+
+  | Notes | New against old |
+  | --- | --- |
+  | C3 to E3 | +1.7 dB |
+  | F#3 to E4 | −0.1 to 0.0 dB |
+  | F#4 to C5 | −0.8 dB |
+
+  So it's the same sound at the same level in the middle, and T1's loudness matching evens out the ends: the old piano jumped 2 dB between E3 and F#3, where the sampler switched from C3's recording to C4's, and the new one doesn't. Onsets match within 0.4 ms.
+- **A save from before** (v2) with Bell, Felt piano and Glass chimes, Mallet, Soft and Felt piano pulses and a Music box orbit loaded with the same sounds. After Begin, the Felt piano objects built sampled instruments with their notes loaded, the others synthesized ones, and the scene played.
+- **Unknown id:** `harp` on a chime, a pulse and an orbit loaded as Bell, Mallet and Pluck, each with a working voice.
+- **Layers**, with T1's soft and hard test instrument copied in for the check and removed afterwards: the picker listed it for all three kinds; a chime, a pulse and an orbit switched to it each played both layers in 25 seconds (the orbit 8 soft and 19 hard, against about two-thirds expected). `pickLayer` over 10,000 strikes: 0% hard at 0.35 and 0.45, 29% at 0.55, 50% at 0.625, 72% at 0.7, 100% at 0.8 and 0.95. Length 0, 0.4 and 1 set the release to 0.25, 0.55 and 1 s.
+- **Network:** Begin fetches the piano's three `.m4a` notes and the textures; no `piano-*.wav`. No console errors.
+- **Simulator** (iPhone 17 Pro): Begin finishes, so WKWebView fetched and decoded the new files, and the scene plays.
 
 **Done when:** Felt piano plays from the manifest exactly as before, a saved scene from before loads with the same sounds, and a scene with an unknown sound id loads with the default sound.
 

@@ -3,9 +3,12 @@ import type { ScaleId } from '../music/theory'
 export type Kind = 'drone' | 'chime' | 'pulse' | 'orbit' | 'texture'
 
 export type DroneTimbre = 'warm' | 'glass' | 'reed' | 'choir'
-export type ChimeSound = 'bell' | 'piano' | 'glass'
-export type PulseSound = 'mallet' | 'soft' | 'piano'
-export type OrbitSound = 'pluck' | 'musicbox' | 'marimba'
+/**
+ * A chime's, pulse's or orbit's sound: a synthesized one or a sampled
+ * instrument's id. src/audio/sounds.ts lists which each kind offers, and
+ * scenes are checked against it as they load.
+ */
+export type SoundId = string
 export type TextureSound = 'rain' | 'wind' | 'waves' | 'embers'
 
 interface Base {
@@ -46,7 +49,7 @@ export interface Drone extends Base {
 
 export interface Chime extends Base {
   kind: 'chime'
-  sound: ChimeSound
+  sound: SoundId
   speed: number
   /** Direction of travel in radians. */
   heading: number
@@ -56,7 +59,7 @@ export interface Chime extends Base {
 
 export interface Pulse extends Base {
   kind: 'pulse'
-  sound: PulseSound
+  sound: SoundId
   rate: number
   reach: number
   /** 0–1: how slowly each note swells in, from a sharp strike to a slow fade-in. Missing in older saves. */
@@ -67,7 +70,7 @@ export type OrbitDirection = 'forward' | 'backward'
 
 export interface Orbit extends Base {
   kind: 'orbit'
-  sound: OrbitSound
+  sound: SoundId
   /** One entry per bead: scale steps above (or below) the orbit's base note. */
   beads: number[]
   /** Parallel to `beads`: a muted step still turns the ring but makes no sound. Missing in older saves. */

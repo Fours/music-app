@@ -1,6 +1,7 @@
 import { Capacitor } from '@capacitor/core'
 import * as Tone from 'tone'
 import { engine } from '../audio/engine'
+import { checkSounds } from '../audio/sounds'
 import { encodeWav } from '../audio/wav'
 import { KIND_LABELS, cloneObject, makeObject } from '../world/objects'
 import { harmonyOf } from '../world/pitch'
@@ -410,6 +411,8 @@ export class Controller {
 
   loadScene(scene: Scene, presetId: string | null) {
     this.world.objects = structuredClone(scene.objects)
+    // An older save, or one with an instrument that's since been removed, gets each kind's default sound.
+    checkSounds(this.world.objects)
     this.world.rt.clear()
     this.world.held.clear()
     this.ui.set((s) => ({

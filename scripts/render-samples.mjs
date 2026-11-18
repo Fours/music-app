@@ -4,17 +4,15 @@
 //
 //   node scripts/render-samples.mjs
 //
-// Output: public/samples/piano-*.wav (mono, 16-bit, 24 kHz), which the app
-// plays today, and the same notes at 48 kHz in samples-src/instruments/piano/
-// with an instrument.json, the source scripts/prepare-instruments.mjs turns
-// into the piano's instrument files. The script is deterministic.
+// Output: the notes at 48 kHz (mono, 16-bit) in samples-src/instruments/piano/,
+// with an instrument.json. Run scripts/prepare-instruments.mjs afterwards to
+// turn them into the files the app plays. The script is deterministic.
 
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
-const OUT = join(ROOT, 'public', 'samples')
 const SOURCE = join(ROOT, 'samples-src', 'instruments', 'piano')
 const TAU = Math.PI * 2
 
@@ -129,9 +127,6 @@ function feltPiano(midi, SR) {
 // --------------------------------------------------------------------- main
 
 const NOTES = { c3: 48, c4: 60, c5: 72 }
-
-mkdirSync(OUT, { recursive: true })
-for (const [note, midi] of Object.entries(NOTES)) writeWav(join(OUT, `piano-${note}.wav`), feltPiano(midi, 24000), 24000)
 
 mkdirSync(SOURCE, { recursive: true })
 for (const [note, midi] of Object.entries(NOTES)) writeWav(join(SOURCE, `${note}.wav`), feltPiano(midi, 48000), 48000)
