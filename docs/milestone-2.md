@@ -32,7 +32,7 @@ Native code goes behind `Capacitor.isNativePlatform()` so the web build is uncha
 | T5. Rename the app to Skyloom | Done |  |
 | T6. App icon, splash, safe areas, haptics | Done |  |
 | T7. Lock-screen controls | Done |  |
-| T8. Vertical clips | In progress |  |
+| T8. Vertical clips | Done |  |
 
 ### T1. Heat and frame rate
 
@@ -346,10 +346,10 @@ A 9:16 clip option for TikTok, Reels and Shorts.
 
 | Check | Expected | Result |
 | --- | --- | --- |
-| Record a clip, play the preview | 9:16, plays with sound | |
-| Save Video | In Photos, plays | |
-| Post as a TikTok or Instagram Reels draft | Fills the screen, no bars; the watermark isn't under the app's buttons or caption | |
-| Frames drawn (preview details) | Close to 30 per second | |
+| Record a clip, play the preview | 9:16, plays with sound | Passed |
+| Save Video | In Photos, plays | Passed |
+| Post as a TikTok or Instagram Reels draft | Fills the screen, no bars; the watermark isn't under the app's buttons or caption | Passed |
+| Frames drawn (preview details) | Close to 30 per second | Passed |
 
 **Not done:** a square (1:1) option. It would be the same code with another shape, if it's ever wanted.
 
