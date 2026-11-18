@@ -8,6 +8,7 @@ import { PRESETS } from '../world/presets'
 import { World } from '../world/sim'
 import { LIMITS, type Kind, type Scene, type Settings, type WorldObject } from '../world/types'
 import { noteAudio } from './audio-log'
+import { placed } from './haptics'
 import { ClipRecorder, clipType } from './clip'
 import { AudioSession, hasNativeAudio, otherAudioPlaying } from './native-audio'
 import { clearShareFiles, openShareSheet, writeShareFile } from './share'
@@ -434,6 +435,7 @@ export class Controller {
     this.world.objects.push(o)
     this.select(o.id)
     this.edited()
+    placed()
     return o
   }
 
@@ -448,6 +450,7 @@ export class Controller {
     this.world.objects.push(copy)
     this.select(copy.id)
     this.edited()
+    placed()
   }
 
   remove(id: string) {

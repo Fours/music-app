@@ -30,7 +30,7 @@ Native code goes behind `Capacitor.isNativePlatform()` so the web build is uncha
 | T3. Share sheet for clips and recordings | Done |  |
 | T4. Durable saves | Done |  |
 | T5. Rename the app to Skyloom | Done |  |
-| T6. App icon, splash, safe areas, haptics | Not started |  |
+| T6. App icon, splash, safe areas, haptics | In progress |  |
 | T7. Lock-screen controls | Not started |  |
 | T8. Vertical clips | Not started |  |
 
@@ -250,6 +250,36 @@ The page title, welcome screen, README, and the names of recordings and clips (`
 ### T6. App icon, splash, safe areas, haptics
 
 Replace Capacitor's default icon and launch screen, check safe areas and the status bar on iPhone and iPad, and add a light haptic tap when placing an object.
+
+**What's built.**
+
+- **Icon:** the favicon's mark (the drone's lilac glow, an orbit's blue ring with its body, and an orange chime) on paper, drawn at 1024 × 1024 by [render-icon.swift](../scripts/render-icon.swift) (`swift scripts/render-icon.swift` from the repo root). The light icon is opaque, as the App Store requires. There are also dark and tinted versions for the iOS 18+ home screen styles; their backgrounds are clear so iOS puts its own behind them.
+- **Launch screen:** a plain sheet of the paper colour instead of Capacitor's splash image, so launch fades straight into the welcome screen. Capacitor's `Splash` image set is gone.
+- **Light appearance only** (`UIUserInterfaceStyle`). The app has no dark theme, so in dark mode iOS turned the status bar text white on the paper background, and the old launch screen black.
+- **iPhone is portrait only.** In landscape an iPhone is about 400 points tall, so the inspector and Scenes panels shrank to a scrolling strip about 100 points high. The phone layout is designed for portrait. iPad keeps all four orientations.
+- **Safe areas:** the page now also uses the left and right insets (`--safe-left`, `--safe-right`) for the top bar, tray, panels, debug badge and clip preview. The web build's layout is unchanged where the insets are 0.
+- **iPad windows:** in a resized window on iPadOS 26, the window controls sat on top of the wordmark. They aren't in the safe area the web view reports, so [MainViewController.swift](../ios/App/App/MainViewController.swift) reads UIKit's corner-adapted safe area and gives the page the extra room as `--window-controls`. It's 0 at full screen and on iPhone, and the top bar moves right by that much in a window.
+- **Haptics:** `@capacitor/haptics` plays a light tap when an object lands: tapping a shape in the tray, dragging one onto the sky, the keyboard, and Duplicate ([haptics.ts](../src/app/haptics.ts)). It doesn't play when a limit stops the placement, or when a scene loads. It runs only in the iOS app. iPads have no Taptic Engine.
+
+**Simulator check** (iPhone 17 Pro, iPad Pro 11-inch, iOS 26.5):
+
+- The new icon is on the home screen. Launch shows the paper sheet with dark status-bar text and goes straight into the welcome screen, in light mode and in dark mode.
+- iPhone: stays upright when the simulator is turned. Placing a drone from the tray works; the haptic itself can't be felt in the simulator.
+- iPad: portrait and landscape fit, and the Scenes panel opens beside the top bar. A narrow resized window switches to the phone layout (bottom sheet, icon-only buttons), and the wordmark sits after the window controls. Back at full screen it returns to the edge.
+- Web (desktop browser): the top bar and tray padding are the same as before, and `--window-controls` is 0px.
+
+**Device results** (iPhone 14):
+
+| Check | Expected | Result |
+| --- | --- | --- |
+| Home screen | The Skyloom icon, not Capacitor's | |
+| Home screen set to Dark, then Tinted (long-press → Edit → Customize) | The dark and tinted icons | |
+| Launch, phone in dark mode | Paper sheet, dark status-bar text, no flash of black or white | |
+| Turn the phone sideways | Stays portrait | |
+| Tap a shape in the tray, drag one onto the sky, Duplicate | A light tap each time | |
+| Tap a shape past its limit | No tap, just the "is plenty" note | |
+
+**Not done:** `UIRequiredDeviceCapabilities` still lists `armv7` from Capacitor's template. Tidy it with the other App Store settings in milestone 4.
 
 **Done when:** the app looks finished on an iPhone and in the iPad simulator.
 
