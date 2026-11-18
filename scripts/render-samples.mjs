@@ -4,14 +4,18 @@
 //
 //   node scripts/render-samples.mjs
 //
-// Output: public/samples/piano-*.wav (mono, 16-bit). The script is deterministic.
+// Output: public/samples/piano-*.wav (mono, 16-bit, 24 kHz), which the app
+// plays today, and the same notes at 48 kHz in samples-src/instruments/piano/
+// with an instrument.json, the source scripts/prepare-instruments.mjs turns
+// into the piano's instrument files. The script is deterministic.
 
 import { mkdirSync, writeFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const OUT = join(dirname(fileURLToPath(import.meta.url)), '..', 'public', 'samples')
-const SR = 24000
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
+const OUT = join(ROOT, 'public', 'samples')
+const SOURCE = join(ROOT, 'samples-src', 'instruments', 'piano')
 const TAU = Math.PI * 2
 
 // ---------------------------------------------------------------- utilities
@@ -29,14 +33,15 @@ function rng(seed) {
 
 /** RBJ biquad; coefficients can be updated per sample for sweeps. */
 class Biquad {
-  constructor(type, freq, q = 0.707) {
+  constructor(sr, type, freq, q = 0.707) {
+    this.sr = sr
     this.type = type
     this.x1 = this.x2 = this.y1 = this.y2 = 0
     this.set(freq, q)
   }
   set(freq, q = this.q) {
     this.q = q
-    const w = (TAU * Math.min(freq, SR * 0.45)) / SR
+    const w = (TAU * Math.min(freq, this.sr * 0.45)) / this.sr
     const cos = Math.cos(w)
     const alpha = Math.sin(w) / (2 * q)
     let b0, b1, b2
@@ -67,7 +72,7 @@ function normalize(buf, peak = 0.89) {
   return buf
 }
 
-function writeWav(name, data) {
+function writeWav(path, data, SR) {
   const bytes = 44 + data.length * 2
   const b = Buffer.alloc(bytes)
   b.write('RIFF', 0); b.writeUInt32LE(bytes - 8, 4); b.write('WAVE', 8)
@@ -77,13 +82,13 @@ function writeWav(name, data) {
   for (let i = 0; i < data.length; i++) {
     b.writeInt16LE(Math.round(Math.max(-1, Math.min(1, data[i])) * 32767), 44 + i * 2)
   }
-  writeFileSync(join(OUT, name), b)
-  console.log(`${name.padEnd(14)} ${(bytes / 1024).toFixed(0).padStart(5)} KB`)
+  writeFileSync(path, b)
+  console.log(`${relative(ROOT, path).padEnd(40)} ${(bytes / 1024).toFixed(0).padStart(5)} KB`)
 }
 
 // -------------------------------------------------------------- felt piano
 
-function feltPiano(midi) {
+function feltPiano(midi, SR) {
   const rand = rng(midi * 7)
   const f0 = 440 * Math.pow(2, (midi - 69) / 12)
   const seconds = 4.5
@@ -108,7 +113,7 @@ function feltPiano(midi) {
     }
   }
   // Hammer thump.
-  const thump = new Biquad('lowpass', 700 + f0 * 0.6)
+  const thump = new Biquad(SR, 'lowpass', 700 + f0 * 0.6)
   for (let i = 0; i < SR * 0.05; i++) {
     buf[i] += thump.run(rand() * 2 - 1) * Math.exp(-i / (SR * 0.008)) * 0.25
   }
@@ -123,7 +128,14 @@ function feltPiano(midi) {
 
 // --------------------------------------------------------------------- main
 
+const NOTES = { c3: 48, c4: 60, c5: 72 }
+
 mkdirSync(OUT, { recursive: true })
-writeWav('piano-c3.wav', feltPiano(48))
-writeWav('piano-c4.wav', feltPiano(60))
-writeWav('piano-c5.wav', feltPiano(72))
+for (const [note, midi] of Object.entries(NOTES)) writeWav(join(OUT, `piano-${note}.wav`), feltPiano(midi, 24000), 24000)
+
+mkdirSync(SOURCE, { recursive: true })
+for (const [note, midi] of Object.entries(NOTES)) writeWav(join(SOURCE, `${note}.wav`), feltPiano(midi, 48000), 48000)
+writeFileSync(
+  join(SOURCE, 'instrument.json'),
+  JSON.stringify({ name: 'Felt piano', kinds: ['chime', 'pulse'], release: 1.2 }, null, 2) + '\n',
+)

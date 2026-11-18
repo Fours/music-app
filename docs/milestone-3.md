@@ -32,7 +32,7 @@ Out of scope:
 
 | Task | Status | Commit |
 | --- | --- | --- |
-| T1. Instrument format and pipeline | Not started |  |
+| T1. Instrument format and pipeline | Done |  |
 | T2. Instruments from a manifest | Not started |  |
 | T3. Load instruments when they're needed | Not started |  |
 | T4. A sound picker for 5 to 8 choices | Not started |  |
@@ -49,6 +49,23 @@ Decide what one instrument is on disk, and write the script that prepares it.
 - **Note spacing:** chimes play D4 to A6 and pulses D3 to G5. Orbit steps can reach two octaves either side of a base note between D3 and D5 ([pitch.ts](../src/world/pitch.ts)), so about D1 to D7. Recommend recordings every 3 or 4 semitones from about C2 to C7, accepting that the extreme orbit steps get repitched further. The script warns about gaps wider than that.
 - Write a decision record for the format and the spacing.
 
+**What's built.** The format and its reasons are in [0003](decisions/0003-instrument-format.md): AAC at 96 kbps, 48 kHz, mono, notes every 3 or 4 semitones, and optional soft and hard layers.
+
+- **Source:** `samples-src/instruments/<id>/` holds the notes (`c3.wav`, `g#3.wav`, `eb4.aif`; any format ffmpeg reads) and `instrument.json`: `name`, `kinds`, `release`, and optionally `gainDb`, `softDb`, `fill`, `maxSeconds`, `onsetDb` and `stereo`. The options are described at the top of [prepare-instruments.mjs](../scripts/prepare-instruments.mjs).
+- **Soft and hard:** `c3-soft.wav` and `c3-hard.wav`. Within a layer every note is set to the same loudness; the soft layer sits below the hard one by the median gap that was recorded (or `softDb`). A note recorded in one layer only is made from the other, unless `fill` is false.
+- **[prepare-instruments.mjs](../scripts/prepare-instruments.mjs):** for each note it cuts the silence before it (keeping 1 ms) and the tail once it's 60 dB down, fades both ends, and sets the level. It writes `public/samples/instruments/<id>/<note>[-soft|-hard].m4a`, with sharps as `s` (`cs3.m4a`), since a `#` would end a URL. Then it decodes every file it wrote and fails if a note starts more than 5 ms in.
+- **Warnings:** gaps wider than 4 semitones, a range short of what the instrument's kinds play, a soft layer barely quieter than hard, an instrument turned down to fit its peaks, and output folders with no source. Bad names, unknown options, duplicate notes and a soft layer without a hard one are errors.
+- **Manifest:** [src/audio/instruments.ts](../src/audio/instruments.ts), generated. Each instrument has its id, name, kinds, release and layers (softest first), each layer mapping notes to files. `PLAYBACK_GAIN_DB` (6.6 dB) is the gain T2 gives every sampled instrument to play at today's Felt piano level.
+- **Felt piano** is the first instrument: [render-samples.mjs](../scripts/render-samples.mjs) also writes its C3, C4 and C5 at 48 kHz to `samples-src/instruments/piano/`, with its `instrument.json`. The app still plays the old `piano-*.wav` until T2; those are byte-for-byte unchanged.
+- **[onset-check.html](../scripts/onset-check.html):** a dev-only page (`npm run dev`, then `/scripts/onset-check.html`) that decodes every note in the manifest with Web Audio and shows where each starts.
+
+**Checks:**
+
+- **Felt piano:** three notes, 55 KB each (165 KB in all, against 1.2 MB for the same notes as 48 kHz WAV). Onsets 0.2 to 0.4 ms in Chrome, Safari on the iOS 26.5 simulator, and ffmpeg. With its edit list ignored, ffmpeg puts the same notes 44.4 ms late, which is what a browser that didn't skip the encoder's silence would do.
+- **A soft and hard test instrument** (not committed), from the piano's notes with 250 to 600 ms of silence and noise before each, the soft ones darker and 11 to 14 dB quieter: every note trimmed to start within 1 ms, the soft layer measured 11.6 dB below hard, and the note missing from each layer was made from the other.
+- **Loudness meter:** agrees with ffmpeg's EBU R128 meter to 0.03 dB on a 1 kHz tone.
+- **Errors:** kinds other than chime, pulse and orbit, an unknown option, no release, a file named `h3.wav`, soft notes without hard ones, plain and layered notes mixed, `c3.wav` with `bs2.wav`, a missing source folder, and `--format ogg` each stop with a message, before anything is written.
+
 **Done when:** running the script on a sample instrument writes the files and a manifest, and a note in the output starts within 5 ms of its file's start.
 
 ### T2. Instruments from a manifest
@@ -56,6 +73,8 @@ Decide what one instrument is on disk, and write the script that prepares it.
 - Replace the hard-coded sound unions with ids checked against a registry. The registry has today's synthesized sounds plus every instrument in the manifest. Felt piano moves into the manifest as the first sampled instrument, keeping the id `piano`.
 - `makeStruck` builds a `Tone.Sampler` for any sampled instrument, using its notes, release and level trim. The Attack slider keeps working as it does for Felt piano.
 - Decide what Length does for a sampled instrument: shorten the release, or nothing.
+- Play every sampled instrument `PLAYBACK_GAIN_DB` up, so Felt piano stays at today's level.
+- **Soft and hard layers:** each strike plays one layer. Chimes strike at 0.35 to 0.95, orbits at 0.55 to 0.8 at random, and pulses always at 0.7, so start with soft below 0.45, hard above 0.8, and a random choice weighted by strength in between. Keep the choice in one place: a Soft, Hard or Auto setting on each object may come later.
 - Old saves keep working. An id the registry doesn't know, such as an instrument that was removed, falls back to the kind's default sound instead of making a silent object.
 
 **Done when:** Felt piano plays from the manifest exactly as before, a saved scene from before loads with the same sounds, and a scene with an unknown sound id loads with the default sound.
@@ -98,6 +117,7 @@ Loading every instrument at Begin listening would make the start slower with eac
 | A busy scene with 3 instruments, 10 minutes | No dropouts, no late notes in the debug badge |  |
 | Memory with every instrument loaded (Xcode's Debug navigator) | Write it down; flag anything over 300 MB |  |
 | App size | Write it down |  |
+| [onset-check.html](../scripts/onset-check.html) in Safari on the iPhone | Every note starts within 5 ms |  |
 
 **Done when:** the table is filled in, and any problem it finds is fixed or moved to a later task.
 
@@ -105,7 +125,7 @@ Loading every instrument at Begin listening would make the start slower with eac
 
 1. **Your recordings:** which instruments, how many notes each, and in what format and sample rate? That decides the note spacing and how much T1's script has to do.
 2. **Kinds:** should every instrument be offered for chimes, pulses and orbits, or only the kinds it suits (for example a long-ringing instrument for chimes only)?
-3. **Velocity:** do you have softer and harder recordings of the same notes? Chimes already vary their strike velocity, so layers would sound more natural, but they double the files.
+3. **Velocity:** answered in T1. Instruments can have soft and hard recordings of their notes ([0003](decisions/0003-instrument-format.md)); how a strike picks one is T2's.
 
 ## Definition of done
 

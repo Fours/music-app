@@ -1,0 +1,59 @@
+<!doctype html>
+<!--
+  Decodes every instrument note the way the app does (Web Audio's
+  decodeAudioData) and shows where each note starts. A browser that ignores
+  the AAC file's note of its encoder's leading silence would show notes about
+  44 ms late. Dev only, not part of the build:
+
+    npm run dev, then open /scripts/onset-check.html
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Instrument onsets</title>
+    <style>
+      body { font: 14px/1.4 system-ui, sans-serif; margin: 16px; }
+      table { border-collapse: collapse; }
+      td, th { padding: 2px 10px 2px 0; text-align: left; font-variant-numeric: tabular-nums; }
+      .fail { color: #b00; font-weight: 600; }
+      #verdict { font-size: 18px; font-weight: 600; margin: 8px 0; }
+    </style>
+  </head>
+  <body>
+    <div id="verdict">Decoding…</div>
+    <div id="agent"></div>
+    <table>
+      <thead><tr><th>File</th><th>Onset</th><th>Length</th><th>Rate</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <script type="module">
+      import { INSTRUMENTS } from '/src/audio/instruments.ts'
+
+      const LIMIT_MS = 5
+      document.getElementById('agent').textContent = navigator.userAgent
+      const ctx = new OfflineAudioContext(1, 1, 48000)
+      const rows = document.getElementById('rows')
+      const results = []
+      for (const inst of INSTRUMENTS)
+        for (const layer of inst.layers)
+          for (const file of Object.values(layer.notes)) {
+            const data = await (await fetch(`/samples/${file}`)).arrayBuffer()
+            const buffer = await ctx.decodeAudioData(data)
+            const ch = buffer.getChannelData(0)
+            let peak = 0
+            for (const v of ch) peak = Math.max(peak, Math.abs(v))
+            const onset = ch.findIndex((v) => Math.abs(v) >= peak * 0.01)
+            const ms = (onset / buffer.sampleRate) * 1000
+            results.push({ file, ms, seconds: buffer.duration })
+            const tr = rows.insertRow()
+            tr.innerHTML = `<td>${file}</td><td class="${ms > LIMIT_MS ? 'fail' : ''}">${ms.toFixed(1)} ms</td><td>${buffer.duration.toFixed(3)} s</td><td>${buffer.sampleRate}</td>`
+          }
+      const worst = Math.max(...results.map((r) => r.ms))
+      const verdict = document.getElementById('verdict')
+      verdict.textContent = `${worst <= LIMIT_MS ? 'Pass' : 'Fail'}: latest onset ${worst.toFixed(1)} ms over ${results.length} notes (limit ${LIMIT_MS} ms)`
+      verdict.className = worst <= LIMIT_MS ? '' : 'fail'
+      window.onsetResults = { worst, results, agent: navigator.userAgent }
+    </script>
+  </body>
+</html>
