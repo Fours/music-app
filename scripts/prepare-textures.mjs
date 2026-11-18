@@ -1,4 +1,4 @@
-// Turns raw field recordings into Drift's texture loops.
+// Turns raw field recordings into Skyloom's texture loops.
 //
 //   node scripts/prepare-textures.mjs
 //

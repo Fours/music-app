@@ -20,6 +20,6 @@ void Promise.race([app.restore(), new Promise((r) => window.setTimeout(r, 3000))
 if (import.meta.env.DEV) {
   // Handy for poking at the running app from the console.
   void Promise.all([import('./app/controller'), import('./audio/engine')]).then(([c, e]) => {
-    Object.assign(window, { drift: { app: c.app, engine: e.engine } })
+    Object.assign(window, { skyloom: { app: c.app, engine: e.engine } })
   })
 }

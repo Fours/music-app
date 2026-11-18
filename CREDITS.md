@@ -10,6 +10,6 @@ peak-limited and encoded as AAC by `scripts/prepare-textures.mjs`.
 | Rain (`rain.m4a`) | [Spectrally Matched Rain Ambient - Part 5](https://freesound.org/s/855740/) | ekilyekil | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) |
 
 The waves recording is licensed for **non-commercial use only**. Replace it
-before using Drift in anything commercial.
+before using Skyloom in anything commercial.
 
 The felt-piano notes are synthesized by `scripts/render-samples.mjs`.

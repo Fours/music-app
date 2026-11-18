@@ -1,4 +1,4 @@
-// Renders Drift's felt-piano notes, synthesized from sine partials so there
+// Renders Skyloom's felt-piano notes, synthesized from sine partials so there
 // are no third-party recordings to license. (The texture loops come from field
 // recordings instead: see scripts/prepare-textures.mjs.)
 //

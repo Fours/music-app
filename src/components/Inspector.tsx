@@ -92,7 +92,7 @@ export function Inspector() {
             />
             <VolumeField o={o} />
             <Slider label="Size" value={o.size} onChange={(size) => set({ size })} format={pctFmt} />
-            <Slider label="Drift" value={o.drift} onChange={(drift) => set({ drift })} hint={['Still', 'Wandering']} format={pctFmt} />
+            <Slider label="Wander" value={o.drift} onChange={(drift) => set({ drift })} hint={['Still', 'Wandering']} format={pctFmt} />
             <FilterField o={o} />
             <p className="tip">Drag it higher or lower to change its note. Further right sounds brighter.</p>
           </>
@@ -157,7 +157,7 @@ export function Inspector() {
             />
             <VolumeField o={o} />
             <Slider label="Size" value={o.size} onChange={(size) => set({ size })} format={pctFmt} />
-            <Slider label="Drift" value={o.drift} onChange={(drift) => set({ drift })} hint={['Still', 'Wandering']} format={pctFmt} />
+            <Slider label="Wander" value={o.drift} onChange={(drift) => set({ drift })} hint={['Still', 'Wandering']} format={pctFmt} />
             <FilterField o={o} />
             <p className="tip">Higher up sounds airier and brighter; lower is more muffled.</p>
           </>

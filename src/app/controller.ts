@@ -539,7 +539,7 @@ export class Controller {
     const capture = this.ui.get().capture
     if (!capture || capture.saving) return
     this.ui.set({ capture: { ...capture, saving: true } })
-    const base = `drift-${slug(this.ui.get().sceneName) || 'session'}-${stamp()}`
+    const base = `skyloom-${slug(this.ui.get().sceneName) || 'session'}-${stamp()}`
     try {
       if (capture.kind === 'audio') {
         const blob = await engine.recorder.stop()
@@ -686,6 +686,7 @@ export class Controller {
   }
 }
 
+/** From when the app was called Drift. Users never see it, and renaming it would only add a migration. */
 const SAVE_KEY = 'drift:scene'
 
 function parseSaved(raw: string | null): { scene: Scene; presetId: string | null } | null {

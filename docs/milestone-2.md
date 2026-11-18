@@ -29,7 +29,7 @@ Native code goes behind `Capacitor.isNativePlatform()` so the web build is uncha
 | T2. Native audio session and recovery | Done |  |
 | T3. Share sheet for clips and recordings | Done |  |
 | T4. Durable saves | Done |  |
-| T5. Rename the app to Skyloom | Not started |  |
+| T5. Rename the app to Skyloom | In progress |  |
 | T6. App icon, splash, safe areas, haptics | Not started |  |
 | T7. Lock-screen controls | Not started |  |
 | T8. Vertical clips | Not started |  |
@@ -194,7 +194,7 @@ Every event goes in the debug badge's audio log, with a count of interruptions. 
 | A recording of 2 minutes or more, stopped while playing | The music doesn't stall while it saves | Passed |
 | Play the preview, then Done | Scene pauses while it plays, plays again after | Passed |
 
-**Not done:** file names still start with `drift-` until the rename (T5). On the web, phones could also use the browser's own share sheet (`navigator.share` with files) instead of downloading; not planned yet.
+**Not done:** On the web, phones could also use the browser's own share sheet (`navigator.share` with files) instead of downloading; not planned yet.
 
 **Done when:** a clip and a recording can each be saved to Photos or Files and posted from the share sheet on the device.
 
@@ -228,6 +228,22 @@ Move the autosave from `localStorage` to `@capacitor/preferences`, since iOS can
 ### T5. Rename the app to Skyloom
 
 The page title, welcome screen, README, and the names of recordings and clips (`drift-…` today). Keep the `drift:scene` storage key, or migrate it.
+
+**What's built.** The welcome screen, top bar, page title and description, clip watermark (a54f729) and README (f332fb2) already said Skyloom, as did the iPhone's home screen. This task finished the rest:
+
+- Recordings and clips are named `skyloom-<scene>-<date>-<time>` instead of `drift-…`.
+- The drone and texture slider that sets how far they move is now **Wander** (its ends already read Still and Wandering). The saved field is still `drift`, so saves didn't need migrating.
+- CREDITS.md, the comments in the sample scripts, and the debug global in development builds (`window.skyloom`) use the new name.
+- Kept: the `drift:scene` storage key. Users never see it, and T4 had just moved saves to Preferences under it, so renaming it would only add a second migration. Also kept: ordinary uses of the word, such as "Drifting" at the slow end of the chime Speed slider and a scene description where music boxes "drift in and out of step".
+
+**Simulator check** (iPhone 17 Pro): the drone inspector shows Wander. A recording of Open Sea was written for the share sheet as `skyloom-open-sea-20261117-1852.wav`. Clips take their name from the same line of code.
+
+**Device results** (iPhone 14):
+
+| Check | Expected | Result |
+| --- | --- | --- |
+| Share a clip to Files | Named `skyloom-…` |  |
+| The scene saved before this update | Still loads |  |
 
 **Done when:** "Drift" no longer appears anywhere a user can see, and old saves still load.
 

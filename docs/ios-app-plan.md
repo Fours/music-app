@@ -13,7 +13,7 @@ Success for a first release:
 
 ## Name
 
-The app ships as **Skyloom**, listed as "Skyloom: Ambient Music Maker" (28 of the 30 characters Apple allows). It's still called Drift in the code and on the web until the rename task in milestone 2.
+The app ships as **Skyloom**, listed as "Skyloom: Ambient Music Maker" (28 of the 30 characters Apple allows). The web version uses the same name. The only traces of Drift left are the storage key for saved scenes, `drift:scene`, and the drone and texture setting stored as `drift`; users don't see either.
 
 Why not Drift: a music app called "Drift - Shape Shifter" is already on the App Store, Drift.com uses the name for business software, and searching "drift" returns car racing games. Why Skyloom: you weave sound across a sky, and no App Store app uses the name.
 
