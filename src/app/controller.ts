@@ -11,6 +11,7 @@ import { noteAudio } from './audio-log'
 import { placed } from './haptics'
 import { ClipRecorder, clipType } from './clip'
 import { AudioSession, hasNativeAudio, otherAudioPlaying } from './native-audio'
+import { connectNowPlaying } from './now-playing'
 import { clearShareFiles, openShareSheet, writeShareFile } from './share'
 import { readSaved, writeSaved } from './storage'
 import { createStore, type CaptureKind, type Preview, type UIState } from './store'
@@ -145,6 +146,19 @@ export class Controller {
     this.ui.set({ phase: 'running', playing: true })
     this.keepAudioAwake()
     this.listenToNativeAudio()
+    // The lock screen's buttons act like Play and Pause in the app.
+    connectNowPlaying(this.ui, {
+      play: () => {
+        this.resumeAfterInterruption = false
+        this.play()
+        // Not a tap, so the context may not restart; wake() falls back to the next tap.
+        void this.wake()
+      },
+      pause: () => {
+        this.resumeAfterInterruption = false
+        this.pause()
+      },
+    })
     void this.checkSession('after starting audio')
   }
 

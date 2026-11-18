@@ -31,7 +31,7 @@ Native code goes behind `Capacitor.isNativePlatform()` so the web build is uncha
 | T4. Durable saves | Done |  |
 | T5. Rename the app to Skyloom | Done |  |
 | T6. App icon, splash, safe areas, haptics | Done |  |
-| T7. Lock-screen controls | Not started |  |
+| T7. Lock-screen controls | In progress |  |
 | T8. Vertical clips | Not started |  |
 
 ### T1. Heat and frame rate
@@ -286,6 +286,38 @@ Replace Capacitor's default icon and launch screen, check safe areas and the sta
 ### T7. Lock-screen controls
 
 Play and pause and the scene name on the lock screen and in Control Center. Skyloom doesn't mix with other audio ([0002](decisions/0002-no-mixing-with-other-audio.md)), so this no longer needs a setting. iOS doesn't show these for apps whose session mixes, and the app's own (listening) session does while WebKit's doesn't, so check which one counts.
+
+**What's built.** The card is WebKit's. The page fills it in through the Media Session API ([now-playing.ts](../src/app/now-playing.ts)), with no native code.
+
+- **Which session counts:** neither of the app's. While the page plays Web Audio, WebKit already puts up a Now Playing card from its GPU process, the one that makes the sound (seen in the simulator's MediaRemote log as `com.apple.WebKit.GPU`). So iOS knows when Skyloom is playing, and the app's own mixing session doesn't matter.
+- **Native first, then dropped:** I first built a native plugin (`MPNowPlayingInfoCenter` and `MPRemoteCommandCenter`). Its card showed the title, icon and LIVE, but it made a second card for the app's own process, which plays nothing, and the lock screen switched between that and WebKit's. Turning off the app session's mixing didn't make the simulator show play and pause either. That plugin is gone, and the session is unchanged.
+- **What the page sets:** after Begin, the title is the scene's name without "(edited)", the artist is Skyloom, and the artwork is the icon at 512 × 512 (`public/now-playing.png`, written by [render-icon.swift](../scripts/render-icon.swift)). `playbackState` follows Play and Pause. The card's Play and Pause, and AirPods, go through the same path as the app's button, plus `wake()` in case the audio context needs restarting. Skip and seek are turned off. Each press goes to the audio log as `lock screen: play` or `lock screen: pause`.
+- **Website:** Safari on an iPhone builds the same card for the website, so this isn't limited to the app. On a desktop it only sets the metadata.
+
+**Simulator check** (iPhone 17 Pro, iOS 26.5):
+
+- Before Begin there's no card. After it, the lock screen shows Open Sea · Skyloom, and WebKit registers Play and Pause (MediaRemote log: `supportedCommands` Play, Pause).
+- The simulator's lock screen draws no play/pause button for any of the versions tried, including the native one and WebKit's own card with handlers registered. So the buttons can only be checked on the device.
+- The artwork reaches iOS (512 px), but in the simulator iOS rejects WebKit's copy ("Failed to determine dimensions for provided image data"). The native version's artwork showed, so this is in WebKit's handoff.
+- The time bar shows `--:--`: WebKit doesn't take an endless duration, so there's no LIVE label.
+- Web (desktop browser): after Begin, the metadata is Open Sea, Skyloom and the icon; the state follows Pause; no console errors.
+
+**Device results** (iPhone 14):
+
+| Check | Expected | Result |
+| --- | --- | --- |
+| Lock screen while playing | Scene name, Skyloom, the icon, a pause button | |
+| Pause from the lock screen | Pauses; the button shows play | |
+| Play from the lock screen: right away, after 1 minute, after 10 minutes | Plays | |
+| Control Center | Same as the lock screen | |
+| AirPods double-tap or stem press | Toggles play and pause | |
+| Change scene in the app | The title follows | |
+| Another app plays, a call, AirPods taken out | As in T2; the card shows the right state | |
+| Open the app with a podcast playing | The podcast keeps playing | |
+
+If the artwork doesn't show on the device either, or Play doesn't restart the sound after a long pause, I'll revisit the native plugin, or keep the audio running quietly while paused (open question).
+
+**Not done:** a LIVE label instead of the empty time bar. WebKit doesn't accept an endless duration.
 
 **Done when:** the controls work on the device.
 

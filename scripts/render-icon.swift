@@ -3,7 +3,9 @@
 //
 //   swift scripts/render-icon.swift
 //
-// Writes ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-{light,dark,tinted}.png.
+// Writes ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-{light,dark,tinted}.png,
+// and the light icon again at 512 × 512 as public/now-playing.png, the lock
+// screen's Now Playing artwork (see src/app/now-playing.ts).
 // The light icon is square and opaque: iOS rounds the corners itself, and
 // App Store icons can't have an alpha channel. The dark and tinted versions
 // leave the background clear so iOS can put its own behind them.
@@ -44,6 +46,15 @@ let looks: [(name: String, look: Look)] = [
 
 let space = CGColorSpace(name: CGColorSpace.sRGB)!
 
+/** The image at half size: plenty for the lock screen, and a quarter of the bytes. */
+func half(_ image: CGImage) -> CGImage {
+  let ctx = CGContext(data: nil, width: size / 2, height: size / 2, bitsPerComponent: 8, bytesPerRow: 0,
+                      space: space, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)!
+  ctx.interpolationQuality = .high
+  ctx.draw(image, in: CGRect(x: 0, y: 0, width: size / 2, height: size / 2))
+  return ctx.makeImage()!
+}
+
 func color(_ c: RGBA) -> CGColor { CGColor(colorSpace: space, components: [c.r, c.g, c.b, c.a])! }
 
 func render(_ look: Look) -> CGImage {
@@ -80,13 +91,18 @@ func render(_ look: Look) -> CGImage {
 }
 
 // Run from the repo root (#filePath isn't the real path when run as a script).
-let out = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-  .appendingPathComponent("ios/App/App/Assets.xcassets/AppIcon.appiconset")
+let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 
-for (name, look) in looks {
-  let url = out.appendingPathComponent("AppIcon-\(name).png")
+func write(_ image: CGImage, to path: String) {
+  let url = root.appendingPathComponent(path)
   let dest = CGImageDestinationCreateWithURL(url as CFURL, UTType.png.identifier as CFString, 1, nil)!
-  CGImageDestinationAddImage(dest, render(look), nil)
+  CGImageDestinationAddImage(dest, image, nil)
   guard CGImageDestinationFinalize(dest) else { fatalError("couldn't write \(url.path)") }
   print("wrote \(url.path)")
+}
+
+for (name, look) in looks {
+  let image = render(look)
+  write(image, to: "ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-\(name).png")
+  if name == "light" { write(half(image), to: "public/now-playing.png") }
 }

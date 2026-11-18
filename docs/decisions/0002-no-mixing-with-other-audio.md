@@ -34,7 +34,7 @@ The native plugin stays, to hear interruptions, route changes and returns to the
 
 ## Consequences
 
-- Lock-screen and Control Center controls ([T7](../milestone-2.md#t7-lock-screen-controls)) no longer depend on a mixing setting. Whether iOS gives them to an app whose own session mixes while WebKit's doesn't is for T7 to find out.
+- Lock-screen and Control Center controls ([T7](../milestone-2.md#t7-lock-screen-controls)) no longer depend on a mixing setting. Whether iOS gives them to an app whose own session mixes while WebKit's doesn't is for T7 to find out. **Found in T7:** the card belongs to WebKit, which publishes it from the process that plays the sound. The page fills it in with the Media Session API, so the app's own mixing session doesn't come into it.
 - One less setting to explain.
 
 ## When to revisit
