@@ -29,7 +29,7 @@ Native code goes behind `Capacitor.isNativePlatform()` so the web build is uncha
 | T2. Native audio session and recovery | Done |  |
 | T3. Share sheet for clips and recordings | Done |  |
 | T4. Durable saves | Done |  |
-| T5. Rename the app to Skyloom | In progress |  |
+| T5. Rename the app to Skyloom | Done |  |
 | T6. App icon, splash, safe areas, haptics | Not started |  |
 | T7. Lock-screen controls | Not started |  |
 | T8. Vertical clips | Not started |  |
@@ -242,8 +242,8 @@ The page title, welcome screen, README, and the names of recordings and clips (`
 
 | Check | Expected | Result |
 | --- | --- | --- |
-| Share a clip to Files | Named `skyloom-…` |  |
-| The scene saved before this update | Still loads |  |
+| Share a clip to Files | Named `skyloom-…` | Passed |
+| The scene saved before this update | Still loads | Passed |
 
 **Done when:** "Drift" no longer appears anywhere a user can see, and old saves still load.
 
