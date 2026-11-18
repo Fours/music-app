@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react'
-import type { Settings } from '../world/types'
+import type { Settings, SoundId } from '../world/types'
 
 export type Phase = 'welcome' | 'loading' | 'running'
 export type Panel = 'none' | 'settings' | 'scenes' | 'record'
@@ -51,6 +51,8 @@ export interface UIState {
   panel: Panel
   toast: { id: number; text: string } | null
   objectCount: number
+  /** Sampled instruments whose notes are still arriving, for the Sound field. */
+  loadingSounds: SoundId[]
 }
 
 type Listener = () => void

@@ -53,16 +53,16 @@ const CHOICES = Object.fromEntries(
 /** The sounds a kind offers, in the order the picker shows them. */
 export const soundsFor = (kind: InstrumentKind): SoundChoice[] => CHOICES[kind]
 
+/** The sound a new object of this kind gets, and the one it falls back to. Always synthesized. */
+export const defaultSound = (kind: InstrumentKind): SoundId => SYNTHESIZED[kind][0].id
+
 /** The kind's sound for `id`, or its default when it doesn't offer that one (an instrument since removed). */
 export function soundOf(kind: InstrumentKind, id: unknown): SoundId {
-  return CHOICES[kind].some((s) => s.id === id) ? (id as SoundId) : SYNTHESIZED[kind][0].id
+  return CHOICES[kind].some((s) => s.id === id) ? (id as SoundId) : defaultSound(kind)
 }
 
 /** The sampled instrument with this id, if it is one. */
 export const sampledInstrument = (id: SoundId): Instrument | undefined => SAMPLED.get(id)
-
-/** Every file the sampled instruments play, as paths in public/samples/. */
-export const INSTRUMENT_FILES = [...SAMPLED.values()].flatMap((i) => i.layers.flatMap((l) => Object.values(l.notes)))
 
 /** Gives every chime, pulse and orbit a sound its kind offers, in place. */
 export function checkSounds(objects: WorldObject[]) {

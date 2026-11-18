@@ -17,8 +17,9 @@ import { CloseIcon, CopyIcon, MinusIcon, MutedIcon, PlusIcon, ShuffleIcon, Speak
 
 const pctFmt = (v: number) => `${Math.round(v * 100)}%`
 
-/** A Sound field's choices: the kind's synthesized sounds, then its sampled instruments. */
-const soundOptions = (kind: InstrumentKind) => soundsFor(kind).map((s) => ({ value: s.id, label: s.label }))
+/** A Sound field's choices: the kind's synthesized sounds, then its sampled instruments, marked while their notes load. */
+const soundOptions = (kind: InstrumentKind, loading: string[]) =>
+  soundsFor(kind).map((s) => ({ value: s.id, label: s.label, busy: loading.includes(s.id) }))
 
 /** Orbit Size: the step length it snaps to. */
 const stepFmt = (v: number) => ORBIT_STEP_NAMES[orbitStepIndex(v)]
@@ -51,6 +52,7 @@ export function Inspector() {
   const selectedId = useStore(app.ui, (s) => s.selectedId)
   useStore(app.ui, (s) => s.version) // re-read the object when it changes
   const settings = useStore(app.ui, (s) => s.settings)
+  const loading = useStore(app.ui, (s) => s.loadingSounds)
   const o = app.find(selectedId)
   if (!o) return null
 
@@ -109,7 +111,7 @@ export function Inspector() {
               label="Sound"
               value={o.sound}
               onChange={(sound) => set({ sound })}
-              options={soundOptions('chime')}
+              options={soundOptions('chime', loading)}
             />
             <VolumeField o={o} />
             <AttackSlider value={o.attack} onChange={(attack) => set({ attack })} />
@@ -126,7 +128,7 @@ export function Inspector() {
               label="Sound"
               value={o.sound}
               onChange={(sound) => set({ sound })}
-              options={soundOptions('pulse')}
+              options={soundOptions('pulse', loading)}
             />
             <VolumeField o={o} />
             <AttackSlider value={o.attack} onChange={(attack) => set({ attack })} />
@@ -175,6 +177,7 @@ export function Inspector() {
 
 function OrbitControls({ o }: { o: Orbit }) {
   const settings = useStore(app.ui, (s) => s.settings)
+  const loading = useStore(app.ui, (s) => s.loadingSounds)
   const set = (patch: Partial<Orbit>) => app.update(o.id, patch)
   const h = harmonyOf(settings)
   const base = baseNote(o, h)!
@@ -199,7 +202,7 @@ function OrbitControls({ o }: { o: Orbit }) {
         label="Sound"
         value={o.sound}
         onChange={(sound) => set({ sound })}
-        options={soundOptions('orbit')}
+        options={soundOptions('orbit', loading)}
       />
       <div className="field">
         <div className="field-head">

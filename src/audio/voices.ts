@@ -3,6 +3,7 @@ import { midiToFreq, type Harmony } from '../music/theory'
 import { OPEN_FILTER, cutoffHz, resonanceDb } from '../world/filter'
 import { baseNote, beadNote } from '../world/pitch'
 import { PLAYBACK_GAIN_DB, type Instrument, type LayerName } from './instruments'
+import type { InstrumentLoader } from './instrument-loader'
 import { sampledInstrument } from './sounds'
 import { TEXTURE_LOOPS } from './texture-loops'
 import type { Chime, Drone, FilterSettings, Orbit, Pulse, SoundEvent, Texture, WorldObject } from '../world/types'
@@ -12,6 +13,8 @@ export interface Buses {
   reverb: Tone.InputNode
   delay: Tone.InputNode
   buffers: Record<string, Tone.ToneAudioBuffer>
+  /** Sampled instruments' notes, which can still be arriving when a voice is built. */
+  instruments: InstrumentLoader
 }
 
 /** Slider values as they stand this tick, after any oscillation. */
@@ -211,19 +214,37 @@ export function pickLayer(layers: LayerName[], velocity: number): LayerName {
  * A sampled instrument from the manifest (src/audio/instruments.ts): one
  * Tone.Sampler per layer, each repitching its nearest recorded note. Each
  * strike plays one layer, and its strength still scales the level within it.
+ *
+ * It can be built before all its notes have loaded: it starts with the ones
+ * that have and adds the rest as they arrive, repitching further until then.
  */
 class Sampled {
   private output = new Tone.Gain(1)
-  private layers: { name: LayerName; sampler: Tone.Sampler }[]
+  private layers: { name: LayerName; sampler: Tone.Sampler; notes: number }[]
   private fullRelease: number
+  private unsubscribe: () => void
 
-  constructor(inst: Instrument, buffers: Record<string, Tone.ToneAudioBuffer>, length?: number) {
+  constructor(inst: Instrument, buses: Buses, length?: number) {
     this.fullRelease = inst.release
-    this.layers = inst.layers.map((layer) => {
-      const urls = Object.fromEntries(Object.entries(layer.notes).map(([note, file]) => [note, buffers[file]]))
+    /** Note files not loaded yet → the layer and note each one fills in. */
+    const missing = new Map<string, { layer: number; note: string }>()
+    this.layers = inst.layers.map((layer, i) => {
+      const urls: Record<string, Tone.ToneAudioBuffer> = {}
+      for (const [note, file] of Object.entries(layer.notes)) {
+        if (buses.buffers[file]) urls[note] = buses.buffers[file]
+        else missing.set(file, { layer: i, note })
+      }
       const sampler = new Tone.Sampler({ urls, release: inst.release, volume: PLAYBACK_GAIN_DB })
       sampler.connect(this.output)
-      return { name: layer.name, sampler }
+      return { name: layer.name, sampler, notes: Object.keys(urls).length }
+    })
+    this.unsubscribe = buses.instruments.onNote((file) => {
+      const m = missing.get(file)
+      if (!m) return
+      missing.delete(file)
+      const layer = this.layers[m.layer]
+      layer.sampler.add(m.note as Tone.Unit.Note, buses.buffers[file])
+      layer.notes++
     })
     this.setLength(length)
   }
@@ -239,11 +260,14 @@ class Sampled {
   }
 
   triggerAttackRelease(freq: number, duration: number, time: number, velocity: number) {
+    // Only layers with a note yet, while the instrument is still loading.
+    const ready = this.layers.filter((l) => l.notes > 0)
+    if (!ready.length) return
     const name = pickLayer(
-      this.layers.map((l) => l.name),
+      ready.map((l) => l.name),
       velocity,
     )
-    this.layers.find((l) => l.name === name)!.sampler.triggerAttackRelease(freq, duration, time, velocity)
+    ready.find((l) => l.name === name)!.sampler.triggerAttackRelease(freq, duration, time, velocity)
   }
 
   connect(destination: Tone.InputNode) {
@@ -252,6 +276,7 @@ class Sampled {
   }
 
   dispose() {
+    this.unsubscribe()
     for (const l of this.layers) l.sampler.dispose()
     this.output.dispose()
   }
@@ -293,7 +318,7 @@ function makeStruck(sound: string, buses: Buses, attack: number, length?: number
   const sampled = sampledInstrument(sound)
   let inst: Struck
   if (sampled) {
-    inst = new Sampled(sampled, buses.buffers, length)
+    inst = new Sampled(sampled, buses, length)
     setAttack(inst, attack)
     return inst
   }

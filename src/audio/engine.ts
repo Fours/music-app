@@ -1,20 +1,38 @@
 import * as Tone from 'tone'
 import { hasNativeAudio, nativeSessionLabel } from '../app/native-audio'
 import type { Harmony } from '../music/theory'
-import type { Settings, SoundEvent, WorldObject } from '../world/types'
+import { baseNote } from '../world/pitch'
+import type { Settings, SoundEvent, SoundId, WorldObject } from '../world/types'
+import { InstrumentLoader } from './instrument-loader'
+import { sampledInstrument } from './sounds'
 import { Tape } from './tape'
-import { INSTRUMENT_FILES } from './sounds'
 import { TEXTURE_LOOPS } from './texture-loops'
 import { createVoice, taper, voiceSignature, withClock, type Buses, type Live, type Voice } from './voices'
 
 /** Master gain at full volume; the compressor and limiter keep peaks in check. */
 const MAKEUP = 2.4
 
-/** Files in public/samples, which are also the keys of `Buses.buffers`. */
-const SAMPLES = [
-  ...INSTRUMENT_FILES,
-  ...Object.values(TEXTURE_LOOPS).flatMap((layers) => layers.map((l) => l.file)),
-]
+/**
+ * Texture loops, loaded at Begin listening. Sampled instruments' notes load
+ * when a scene needs them (InstrumentLoader). Both are files in
+ * public/samples, and keys of `Buses.buffers`.
+ */
+const TEXTURE_FILES = Object.values(TEXTURE_LOOPS).flatMap((layers) => layers.map((l) => l.file))
+
+/** The sampled instrument an object plays, if it plays one. */
+function sampledSound(o: WorldObject): SoundId | undefined {
+  return (o.kind === 'chime' || o.kind === 'pulse' || o.kind === 'orbit') && sampledInstrument(o.sound) ? o.sound : undefined
+}
+
+/** The sampled instruments `objects` play, each with a pitch it's played at, for loading. */
+export function instrumentsIn(objects: WorldObject[], h: Harmony): { id: SoundId; nearMidi: number }[] {
+  const found = new Map<SoundId, number>()
+  for (const o of objects) {
+    const id = sampledSound(o)
+    if (id && !found.has(id)) found.set(id, baseNote(o, h) ?? 60)
+  }
+  return [...found].map(([id, nearMidi]) => ({ id, nearMidi }))
+}
 
 interface Slot {
   voice: Voice
@@ -40,8 +58,15 @@ export class AudioEngine {
   private meter!: Tone.Meter
   /** Decoded samples, kept so a rebuilt engine doesn't fetch and decode them again. */
   private samples: Record<string, Tone.ToneAudioBuffer> = {}
+  /** Sampled instruments' notes, loaded as scenes need them. */
+  readonly instruments = new InstrumentLoader(this.samples, (file) => loadSample(`${import.meta.env.BASE_URL}samples/${file}`))
 
-  async init(onProgress?: (p: number) => void) {
+  /**
+   * Builds the audio graph and loads the texture loops plus every note of
+   * `instruments`, the ones the scene starts with. An instrument that can't
+   * load doesn't stop it: InstrumentLoader.onFailed hears about it.
+   */
+  async init(onProgress?: (p: number) => void, instruments: { id: SoundId; nearMidi: number }[] = []) {
     // Prefer stable playback over low latency; nothing here is played live.
     // iOS: ignore the mute switch, and take over from other apps' audio (decision 0002).
     const nav = navigator as Navigator & { audioSession?: { type: string } }
@@ -77,16 +102,19 @@ export class AudioEngine {
     delayTone.connect(mix)
 
     let done = 0
+    const total = TEXTURE_FILES.length + instruments.reduce((n, i) => n + this.instruments.fileCount(i.id), 0)
+    const step = () => onProgress?.(++done / total)
     const buffers = this.samples
     await Promise.all([
       reverb.ready,
-      ...SAMPLES.map(async (file) => {
+      ...TEXTURE_FILES.map(async (file) => {
         buffers[file] ??= await loadSample(`${import.meta.env.BASE_URL}samples/${file}`)
-        onProgress?.(++done / SAMPLES.length)
+        step()
       }),
+      ...instruments.map((i) => this.instruments.load(i.id, i.nearMidi, step)),
     ])
 
-    this.buses = { dry, reverb, delay: this.delay, buffers }
+    this.buses = { dry, reverb, delay: this.delay, buffers, instruments: this.instruments }
     this.ready = true
   }
 
@@ -115,7 +143,14 @@ export class AudioEngine {
       let slot = this.slots.get(o.id)
       if (slot && slot.signature !== signature) {
         slot.voice.release()
+        this.slots.delete(o.id)
         slot = undefined
+      }
+      // A sampled instrument with no notes yet: start loading it, and stay quiet until its first note arrives.
+      const sampled = sampledSound(o)
+      if (!slot && sampled && !this.instruments.playable(sampled)) {
+        void this.instruments.load(sampled, baseNote(o, h) ?? 60)
+        continue
       }
       if (!slot) {
         slot = { voice: createVoice(o, this.buses), signature }

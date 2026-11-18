@@ -66,7 +66,8 @@ export function Segmented<T extends string>({
 }: {
   label: string
   value: T
-  options: { value: T; label: string }[]
+  /** `busy`: the choice is still loading (a sampled instrument's notes). */
+  options: { value: T; label: string; busy?: boolean }[]
   onChange: (v: T) => void
 }) {
   return (
@@ -82,9 +83,11 @@ export function Segmented<T extends string>({
             role="radio"
             aria-checked={o.value === value}
             className={o.value === value ? 'on' : ''}
+            aria-busy={o.busy || undefined}
             onClick={() => onChange(o.value)}
           >
             {o.label}
+            {o.busy && <span className="loading-dot" aria-hidden />}
           </button>
         ))}
       </div>

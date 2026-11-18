@@ -1,13 +1,14 @@
 import { Capacitor } from '@capacitor/core'
 import * as Tone from 'tone'
-import { engine } from '../audio/engine'
-import { checkSounds } from '../audio/sounds'
+import { engine, instrumentsIn } from '../audio/engine'
+import type { InstrumentKind } from '../audio/instruments'
+import { checkSounds, defaultSound, sampledInstrument, soundsFor } from '../audio/sounds'
 import { encodeWav } from '../audio/wav'
 import { KIND_LABELS, cloneObject, makeObject } from '../world/objects'
 import { harmonyOf } from '../world/pitch'
 import { PRESETS } from '../world/presets'
 import { World } from '../world/sim'
-import { LIMITS, type Kind, type Scene, type Settings, type WorldObject } from '../world/types'
+import { LIMITS, type Kind, type Scene, type Settings, type SoundId, type WorldObject } from '../world/types'
 import { noteAudio } from './audio-log'
 import { placed } from './haptics'
 import { ClipRecorder, clipType } from './clip'
@@ -47,6 +48,7 @@ export class Controller {
     panel: 'none',
     toast: null,
     objectCount: 0,
+    loadingSounds: [],
   })
   private audioDriven = false
   private toastTimer = 0
@@ -59,6 +61,25 @@ export class Controller {
 
   constructor() {
     this.loadPreset(PRESETS[0].id)
+    engine.instruments.onChange = () => this.ui.set({ loadingSounds: engine.instruments.loading() })
+    engine.instruments.onFailed = (id) => this.instrumentFailed(id)
+  }
+
+  /**
+   * None of an instrument's notes would load (on the web, usually the network).
+   * Every object playing it switches to its kind's default sound, so the Sound
+   * field shows what's playing. Choosing the instrument again tries again.
+   */
+  private instrumentFailed(id: SoundId) {
+    const users = this.world.objects.filter((o) => (o.kind === 'chime' || o.kind === 'pulse' || o.kind === 'orbit') && o.sound === id)
+    if (!users.length) return
+    for (const o of users) Object.assign(o, { sound: defaultSound(o.kind as InstrumentKind) })
+    this.edited()
+    const name = sampledInstrument(id)?.name ?? id
+    const kinds = new Set(users.map((o) => o.kind as InstrumentKind))
+    const instead =
+      kinds.size === 1 ? `${users.length === 1 ? 'it plays' : 'they play'} ${soundsFor([...kinds][0])[0].label}` : 'they play their default sounds'
+    this.toast(`Couldn't load ${name}, so ${instead} instead. Choose it again to retry.`, 6000)
   }
 
   private restored: Promise<void> | null = null
@@ -136,7 +157,10 @@ export class Controller {
     if (this.ui.get().phase !== 'welcome') return
     this.ui.set({ phase: 'loading', loadProgress: 0 })
     try {
-      await engine.init((p) => this.ui.set({ loadProgress: p }))
+      await engine.init(
+        (p) => this.ui.set({ loadProgress: p }),
+        instrumentsIn(this.world.objects, harmonyOf(this.settings)),
+      )
     } catch (err) {
       console.error(err)
       this.ui.set({ phase: 'welcome' })

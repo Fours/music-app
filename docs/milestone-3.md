@@ -34,7 +34,7 @@ Out of scope:
 | --- | --- | --- |
 | T1. Instrument format and pipeline | Done |  |
 | T2. Instruments from a manifest | Done |  |
-| T3. Load instruments when they're needed | Not started |  |
+| T3. Load instruments when they're needed | Done |  |
 | T4. A sound picker for 5 to 8 choices | Not started |  |
 | T5. Your first instruments | Not started |  |
 | T6. Check on the iPhone | Not started |  |
@@ -113,6 +113,30 @@ Loading every instrument at Begin listening would make the start slower with eac
 - At Begin listening, load only the texture loops and the instruments the scene uses.
 - Load an instrument when it's first chosen. Until its notes arrive the object stays quiet, and the picker shows that the sound is loading. Once loaded, an instrument stays in memory.
 - If a file fails to load, fall back to the default sound and show a message.
+
+**What's built.**
+
+- **[InstrumentLoader](../src/audio/instrument-loader.ts)** fetches an instrument's notes nearest the pitch it's first needed at, four at a time, alternating soft and hard at the same distance. Decoded notes join the shared buffers and stay, through an audio rebuild too. The engine owns one ([engine.ts](../src/audio/engine.ts)).
+- **Begin** loads the texture loops and every note of the instruments the scene uses (`instrumentsIn`), and waits for them in full, so a saved scene sounds right from its first note. The progress bar counts those files. A scene with no sampled sounds loads no instrument files.
+- **Later** (choosing a sound, loading a preset or scene): the engine doesn't build a voice for an instrument with no notes yet. It starts loading it at the object's base note, and the object stays quiet. The first tick after a note lands builds the voice.
+- **Playing while loading:** `Sampled` starts with the notes that have arrived and adds the rest with `Sampler.add` as they come, repitching further until then. `pickLayer` chooses only among layers that have a note.
+- **Picker:** the store's `loadingSounds` lists instruments with notes still to come. Their option in the Sound field shows a pulsing dot (still, with reduced motion) and is `aria-busy`.
+- **Failures:** a note that fails is skipped, and the console says so. If none of an instrument's notes load, every object playing it switches to its kind's default sound, which is saved, and a message says so: "Couldn't load Big test, so it plays Mallet instead. Choose it again to retry." Nothing is remembered as failed, so choosing it again tries again. Begin finishes either way.
+
+**Checks** (web, with a 2.2 MB test instrument: 21 notes from C2 to C7, soft and hard, made by repitching the piano, copied in for the checks and removed afterwards):
+
+- **Begin:** Morning Fog (no sampled sounds) fetched the 5 texture files and no instrument notes. Loading Rain on Glass afterwards fetched the piano's 3 notes, playable in 76 ms. A saved scene with the test instrument and Felt piano fetched the textures and both instruments, and Begin finished with all 42 and all 3 notes loaded.
+- **Choosing a sound that isn't loaded**, a pulse at full rate, from choosing it:
+
+  | Network | First note loaded | First sound | All 42 notes |
+  | --- | --- | --- | --- |
+  | Local dev server | 35 ms | 151 ms | 151 ms |
+  | Fast 3G, simulated* | 858 ms | 2.2 s | 13.5 s |
+
+  \*The built-in browser can't throttle, so the page's `fetch` was slowed for the test: 562 ms per request and 180 KB/s shared by every request in flight. The first sound waits for the pulse's next beat after the first note.
+- **Picker:** while the test instrument loaded, its option showed the dot and `aria-busy`; afterwards neither.
+- **Failures:** with every test note blocked, the chime fell back to Bell, with the message; unblocked, choosing it again loaded all 42 notes. With the soft notes blocked, a pulse played on from the hard layer (21 loaded, 21 failed). With the test notes blocked at Begin, Begin finished, and the pulse fell back to Mallet, with the message.
+- **Simulator** (iPhone 17 Pro): Begin with Open Sea (no sampled sounds) finishes and plays. Switching to Rain on Glass there didn't take (the simulator's taps lagged), so on-demand loading in the app is left to T6, where the table already asks for it. It uses the same fetch and decode as Begin.
 
 **Done when:** Begin listening loads no more than the scene needs, and choosing a sound that isn't loaded yet plays it within a second on the iPhone. Check that with the network throttled to Fast 3G on the web.
 
