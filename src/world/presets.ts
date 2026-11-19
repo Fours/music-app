@@ -57,7 +57,7 @@ export const PRESETS: Preset[] = [
   {
     id: 'rain-on-glass',
     name: 'Rain on Glass',
-    description: 'A felt piano, a low reed and rain against the window',
+    description: 'A piano, a low reed and rain against the window',
     colors: ['#a9bccf', '#d9dfe6'],
     build: () => ({
       name: 'Rain on Glass',

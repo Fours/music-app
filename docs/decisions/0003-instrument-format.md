@@ -47,7 +47,7 @@ Milestone 3 adds instruments made from recorded notes. Each needs notes across t
 
 - **Size:** about 0.4 MB per instrument with 7 notes, or 0.8 MB with soft and hard layers; about 12 MB in memory once loaded.
 - **Strength (T2):** each strike plays one layer. Chimes vary from 0.35 to 0.95 with what hits them, orbits from 0.55 to 0.8 at random, and pulses always strike at 0.7, so a single threshold would give pulses and orbits only one layer. T2 starts with soft below 0.45, hard above 0.8, and a random choice weighted by strength in between. Because the manifest names the layers, other rules fit the same files: for example a Soft, Hard or Auto choice on each object, which may come later.
-- **The originals aren't committed**, like the textures' recordings. Felt piano's are rendered by [render-samples.mjs](../../scripts/render-samples.mjs), so they can always be made again.
+- **The originals aren't committed**, like the textures' recordings. Felt piano's were rendered by a script; since 2026-11-19 a recorded piano has the id `piano` instead, and that script is gone.
 
 ## When to revisit
 

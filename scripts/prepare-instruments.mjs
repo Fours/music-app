@@ -18,7 +18,7 @@
 // instrument.json:
 //
 //   {
-//     "name": "Felt piano",            shown in the app
+//     "name": "Piano",                 shown in the app
 //     "kinds": ["chime", "pulse"],     which objects offer it: chime, pulse, orbit
 //     "release": 1.2,                  seconds a note fades over once let go
 //     "gainDb": 0,                     level trim for the whole instrument
@@ -31,7 +31,8 @@
 //     "stereo": false                  optional: keep stereo (default mono)
 //   }
 //
-// For each note it cuts the silence before the note so it starts on the beat,
+// For each note it cuts whatever comes before the note (silence or background
+// sound) so it starts on the beat,
 // cuts the tail once it has died away and fades it, and sets every note in a
 // layer to the same loudness. See docs/decisions/0003-instrument-format.md.
 
@@ -63,8 +64,9 @@ const SR = 48000
  */
 const TARGET_LUFS = -18
 /**
- * Today's Felt piano C4 (peak-normalized to 0.8) measures this. The app plays
- * sampled instruments PLAYBACK_GAIN_DB up, so they sit where the piano does.
+ * The level the first sampled instrument, a synthesized felt piano, played at
+ * (its C4, peak-normalized to 0.8). The app plays sampled instruments
+ * PLAYBACK_GAIN_DB up, so they sit at that level among the synthesized sounds.
  */
 const PIANO_LUFS = -11.4
 /** −1.5 dBFS, leaving room for AAC's overshoot. */
@@ -73,6 +75,8 @@ const PEAK_CEILING = 10 ** (-1.5 / 20)
 const PRE_ROLL = 0.001
 const FADE_IN = 0.0005
 const FADE_OUT = 0.3
+/** Background closer than this to a note's peak gets a warning. */
+const NOISY_DB = -30
 /** Where the tail is cut, below the note's peak. */
 const TAIL_DB = -60
 /** The onset must be within this of the start of the written file. */
@@ -162,12 +166,42 @@ function frameAbs(samples, channels) {
   return abs
 }
 
-/** Where the note starts: the first frame within `onsetDb` of its peak. */
-function onsetOf(samples, channels, onsetDb) {
+/**
+ * Where a written file's first sound is: the first frame within `onsetDb` of
+ * its peak. After trimming, anything before the note is gone, so the first
+ * sound is the note, and this checks that encoding didn't put silence first.
+ */
+function firstSound(samples, channels, onsetDb) {
   const abs = frameAbs(samples, channels)
   const peak = abs.reduce((a, b) => Math.max(a, b), 0)
-  const threshold = peak * fromDb(onsetDb)
-  return { frame: abs.findIndex((v) => v >= threshold), peak, abs }
+  return { frame: abs.findIndex((v) => v >= peak * fromDb(onsetDb)) }
+}
+
+/**
+ * Where a recorded note starts, and how loud the background before it is.
+ *
+ * A recording can open with background sound (room, hiss, a pedal, the last
+ * note dying away) before the note itself, as loud as 12 dB under it. So the
+ * note isn't the first sound above some level: it's the rise that leads to its
+ * peak. In 1 ms steps, this walks back from the peak while the level stays
+ * 6 dB above the background (the median level before the note) and within
+ * `onsetDb` of the peak.
+ */
+function onsetOf(samples, channels, onsetDb) {
+  const abs = frameAbs(samples, channels)
+  const win = Math.round(SR / 1000)
+  const env = new Float32Array(Math.ceil(abs.length / win))
+  for (let i = 0; i < abs.length; i++) env[(i / win) | 0] = Math.max(env[(i / win) | 0], abs[i])
+  let top = 0
+  for (let w = 1; w < env.length; w++) if (env[w] > env[top]) top = w
+  const peak = env[top] ?? 0
+  // The background: the median level up to 20 ms before the peak, if there's that much.
+  const before = Array.from(env.subarray(0, Math.max(0, top - 20))).sort((a, b) => a - b)
+  const background = before.length >= 20 ? before[before.length >> 1] : 0
+  const threshold = Math.max(peak * fromDb(onsetDb), background * fromDb(6))
+  let w = top
+  while (w > 0 && env[w - 1] >= threshold) w--
+  return { frame: w * win, peak, abs, background }
 }
 
 /**
@@ -206,8 +240,10 @@ function loudness(samples, channels) {
 /** Trims a recorded note: silence before it, the tail after it dies away. */
 function trim(file, spec, channels) {
   const raw = decode(file, channels)
-  const { frame, peak, abs } = onsetOf(raw, channels, spec.onsetDb ?? -40)
+  const { frame, peak, abs, background } = onsetOf(raw, channels, spec.onsetDb ?? -40)
   if (peak === 0) fail(`${show(file)} is silent`)
+  if (background > peak * fromDb(NOISY_DB))
+    warn(`${show(file)}: the background before the note is only ${(-db(background / peak)).toFixed(0)} dB below it, so it will be heard in the tail; noise reduction on the recording would help`)
   const start = Math.max(0, frame - Math.round(PRE_ROLL * SR))
   let end = abs.length
   const tail = peak * fromDb(TAIL_DB)
@@ -366,7 +402,7 @@ function prepare({ id, spec, layers }) {
       encode(out, channels, path)
       const size = statSync(path).size
       bytes += size
-      const back = onsetOf(decode(path, channels), channels, spec.onsetDb ?? -40)
+      const back = firstSound(decode(path, channels), channels, spec.onsetDb ?? -40)
       const onsetMs = (back.frame / SR) * 1000
       if (onsetMs > ONSET_LIMIT_MS) fail(`${id}/${file}: starts ${onsetMs.toFixed(1)} ms in (limit ${ONSET_LIMIT_MS} ms)`)
       entry.notes[noteName(midi)] = `instruments/${id}/${file}`
@@ -429,7 +465,7 @@ export interface Instrument {
   layers: InstrumentLayer[]
 }
 
-/** Gain the app gives every sampled instrument, so it plays at today's Felt piano level. */
+/** Gain the app gives every sampled instrument, so it sits at the level the synthesized felt piano played at. */
 export const PLAYBACK_GAIN_DB = ${+(PIANO_LUFS - TARGET_LUFS).toFixed(1)}
 
 export const INSTRUMENTS: Instrument[] = ${JSON.stringify(instruments, null, 2).replace(/"(\w+)":/g, '$1:').replace(/"/g, "'")}

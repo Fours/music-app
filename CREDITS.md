@@ -12,4 +12,4 @@ peak-limited and encoded as AAC by `scripts/prepare-textures.mjs`.
 The waves recording is licensed for **non-commercial use only**. Replace it
 before using Skyloom in anything commercial.
 
-The felt-piano notes are synthesized by `scripts/render-samples.mjs`.
+The piano's notes (`public/samples/instruments/piano/`) are recordings; where they came from is still to be added (milestone 3, T5).

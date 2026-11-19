@@ -26,25 +26,46 @@ export interface Instrument {
   layers: InstrumentLayer[]
 }
 
-/** Gain the app gives every sampled instrument, so it plays at today's Felt piano level. */
+/** Gain the app gives every sampled instrument, so it sits at the level the synthesized felt piano played at. */
 export const PLAYBACK_GAIN_DB = 6.6
 
 export const INSTRUMENTS: Instrument[] = [
   {
     id: 'piano',
-    name: 'Felt piano',
+    name: 'Piano',
     kinds: [
       'chime',
-      'pulse'
+      'pulse',
+      'orbit'
     ],
-    release: 1.2,
+    release: 3,
     layers: [
       {
-        name: 'single',
+        name: 'soft',
         notes: {
-          C3: 'instruments/piano/c3.m4a',
-          C4: 'instruments/piano/c4.m4a',
-          C5: 'instruments/piano/c5.m4a'
+          F2: 'instruments/piano/f2-soft.m4a',
+          B2: 'instruments/piano/b2-soft.m4a',
+          F3: 'instruments/piano/f3-soft.m4a',
+          B3: 'instruments/piano/b3-soft.m4a',
+          F4: 'instruments/piano/f4-soft.m4a',
+          B4: 'instruments/piano/b4-soft.m4a',
+          F5: 'instruments/piano/f5-soft.m4a',
+          B5: 'instruments/piano/b5-soft.m4a',
+          F6: 'instruments/piano/f6-soft.m4a'
+        }
+      },
+      {
+        name: 'hard',
+        notes: {
+          F2: 'instruments/piano/f2-hard.m4a',
+          B2: 'instruments/piano/b2-hard.m4a',
+          F3: 'instruments/piano/f3-hard.m4a',
+          B3: 'instruments/piano/b3-hard.m4a',
+          F4: 'instruments/piano/f4-hard.m4a',
+          B4: 'instruments/piano/b4-hard.m4a',
+          F5: 'instruments/piano/f5-hard.m4a',
+          B5: 'instruments/piano/b5-hard.m4a',
+          F6: 'instruments/piano/f6-hard.m4a'
         }
       }
     ]

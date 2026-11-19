@@ -31,7 +31,7 @@ npm run dev
 - `npm run lint`: oxlint.
 - `npm run check:offline`: checks that the build in `dist/` loads nothing from the network, which the iOS app needs.
 - `npm run ios`: builds, runs the offline check, copies the build into the iOS project with `cap sync`, and opens it in Xcode.
-- `node scripts/render-samples.mjs`: regenerates the felt-piano notes in `public/samples/`.
+- `node scripts/prepare-instruments.mjs`: turns the note recordings in `samples-src/instruments/<id>/` into the sampled instruments in `public/samples/instruments/` and their manifest, `src/audio/instruments.ts`. Needs ffmpeg. As with the textures, only the prepared files are in git. The format is in [docs/decisions/0003-instrument-format.md](docs/decisions/0003-instrument-format.md).
 - `node scripts/prepare-textures.mjs`: rebuilds the texture loops from the field recordings in `samples-src/`. Needs ffmpeg. The recordings themselves aren't in git (they're large), only the loops made from them.
 
 ### iOS app
@@ -48,5 +48,5 @@ The iPhone and iPad app, Skyloom, wraps the same build with [Capacitor](https://
 - **Simulation** (`src/world/sim.ts`): runs on Tone's transport, so it advances on the audio clock in steady 25 ms ticks. That keeps timing exact and keeps the music playing in a background tab. Every note is stamped with its exact audio time. The canvas uses those timestamps to light objects up at the moment they sound.
 - **Rendering** (`src/world/render.ts`): drawn in code on a 2D canvas. Drones and textures use multiply blending for a soft, watercolour look.
 - **Textures** (`scripts/prepare-textures.mjs`): rain, wind, waves and embers are field recordings. The script cuts a steady stretch of each, moving each cut to a quiet moment, and crossfades the end into the start so the loop has no seam. It then matches their loudness, limits peaks and encodes stereo AAC. Sources and licences are in [CREDITS.md](CREDITS.md). Fire has two layers on different loop lengths, a steady roar and crackle, so the repeat is hard to hear. The script writes `src/audio/texture-loops.ts`, which tells the player where each loop sits in its file.
-- **Piano** (`scripts/render-samples.mjs`): the felt-piano notes are synthesised from sine partials.
+- **Sampled instruments** (`scripts/prepare-instruments.mjs`, `src/audio/sounds.ts`): recorded notes, soft and hard, every 6 semitones. A strike's strength picks the layer, and Tone's sampler repitches the nearest note. They load when a scene first needs them.
 - **Music theory** (`src/music/theory.ts`): each mood is a scale. Pitch comes from an object's height, snapped to that scale. Drones are limited to chord tones, so held notes never clash.
