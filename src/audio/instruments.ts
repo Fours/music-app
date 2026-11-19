@@ -31,6 +31,32 @@ export const PLAYBACK_GAIN_DB = 6.6
 
 export const INSTRUMENTS: Instrument[] = [
   {
+    id: 'harpsichord',
+    name: 'Harpsichord',
+    kinds: [
+      'chime',
+      'pulse',
+      'orbit'
+    ],
+    release: 3,
+    layers: [
+      {
+        name: 'single',
+        notes: {
+          F2: 'instruments/harpsichord/f2.m4a',
+          B2: 'instruments/harpsichord/b2.m4a',
+          F3: 'instruments/harpsichord/f3.m4a',
+          B3: 'instruments/harpsichord/b3.m4a',
+          F4: 'instruments/harpsichord/f4.m4a',
+          B4: 'instruments/harpsichord/b4.m4a',
+          F5: 'instruments/harpsichord/f5.m4a',
+          B5: 'instruments/harpsichord/b5.m4a',
+          F6: 'instruments/harpsichord/f6.m4a'
+        }
+      }
+    ]
+  },
+  {
     id: 'piano',
     name: 'Piano',
     kinds: [
@@ -66,6 +92,46 @@ export const INSTRUMENTS: Instrument[] = [
           F5: 'instruments/piano/f5-hard.m4a',
           B5: 'instruments/piano/b5-hard.m4a',
           F6: 'instruments/piano/f6-hard.m4a'
+        }
+      }
+    ]
+  },
+  {
+    id: 'rhodes',
+    name: 'Rhodes',
+    kinds: [
+      'chime',
+      'pulse',
+      'orbit'
+    ],
+    release: 3,
+    layers: [
+      {
+        name: 'soft',
+        notes: {
+          F2: 'instruments/rhodes/f2-soft.m4a',
+          B2: 'instruments/rhodes/b2-soft.m4a',
+          F3: 'instruments/rhodes/f3-soft.m4a',
+          B3: 'instruments/rhodes/b3-soft.m4a',
+          F4: 'instruments/rhodes/f4-soft.m4a',
+          B4: 'instruments/rhodes/b4-soft.m4a',
+          F5: 'instruments/rhodes/f5-soft.m4a',
+          B5: 'instruments/rhodes/b5-soft.m4a',
+          F6: 'instruments/rhodes/f6-soft.m4a'
+        }
+      },
+      {
+        name: 'hard',
+        notes: {
+          F2: 'instruments/rhodes/f2-hard.m4a',
+          B2: 'instruments/rhodes/b2-hard.m4a',
+          F3: 'instruments/rhodes/f3-hard.m4a',
+          B3: 'instruments/rhodes/b3-hard.m4a',
+          F4: 'instruments/rhodes/f4-hard.m4a',
+          B4: 'instruments/rhodes/b4-hard.m4a',
+          F5: 'instruments/rhodes/f5-hard.m4a',
+          B5: 'instruments/rhodes/b5-hard.m4a',
+          F6: 'instruments/rhodes/f6-hard.m4a'
         }
       }
     ]
