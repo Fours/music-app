@@ -1,5 +1,5 @@
 import { Capacitor } from '@capacitor/core'
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { app } from '../app/controller'
 import { useStore } from '../app/store'
 import { KEYS, SCALES, keyName, scaleById } from '../music/theory'
@@ -148,8 +148,37 @@ export function ScenesPanel() {
             </span>
           </button>
         </div>
+        {import.meta.env.DEV && <SaveAsPreset />}
       </div>
     </aside>
+  )
+}
+
+/**
+ * On the dev server only: saves the sky as a mood's scene in the repo, so you
+ * can build a mood in the app and ship it. Picks the mood this sky came from.
+ */
+function SaveAsPreset() {
+  const sceneName = useStore(app.ui, (s) => s.sceneName)
+  const from = PRESETS.find((p) => sceneName.replace(/ \(edited\)$/, '') === p.name)
+  const [chosen, setChosen] = useState<string | null>(null)
+  const id = chosen ?? from?.id ?? PRESETS[0].id
+  return (
+    <div className="dev-save">
+      <label>
+        <span className="label">Developer: save this sky as</span>
+        <select value={id} onChange={(e) => setChosen(e.target.value)}>
+          {PRESETS.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <button className="chip-button" onClick={() => void app.saveAsPreset(id)}>
+        Save as default
+      </button>
+    </div>
   )
 }
 

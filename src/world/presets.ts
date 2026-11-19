@@ -1,5 +1,6 @@
-import { makeObject } from './objects'
+import { makeObject, newId } from './objects'
 import type { Kind, Scene, Settings, WorldObject } from './types'
+import savedScenes from './preset-scenes.json'
 
 export interface Preset {
   id: string
@@ -28,7 +29,7 @@ const settings = (s: Partial<Settings>): Settings => ({
   ...s,
 })
 
-export const PRESETS: Preset[] = [
+const BUILT: Preset[] = [
   {
     id: 'morning-fog',
     name: 'Morning Fog',
@@ -181,6 +182,33 @@ export const PRESETS: Preset[] = [
     }),
   },
 ]
+
+/**
+ * Moods' scenes as they were saved from the app on the dev server (the Scenes
+ * panel's "Save as default", written by vite.config.ts), by mood id. Each
+ * replaces that mood's build above; objects get fresh ids each time it loads.
+ */
+interface SavedScene {
+  settings: Partial<Settings>
+  objects: Omit<WorldObject, 'id'>[]
+}
+
+export const PRESET_SCENES_FILE = 'src/world/preset-scenes.json'
+
+const SAVED = savedScenes as Record<string, SavedScene>
+
+export const PRESETS: Preset[] = BUILT.map((p) => {
+  const saved = SAVED[p.id]
+  if (!saved) return p
+  return {
+    ...p,
+    build: () => ({
+      name: p.name,
+      settings: settings(saved.settings),
+      objects: saved.objects.map((o) => ({ ...structuredClone(o), id: newId() }) as WorldObject),
+    }),
+  }
+})
 
 export const EMPTY_SCENE = (current: Settings): Scene => ({
   name: 'Untitled',

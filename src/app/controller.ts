@@ -6,7 +6,7 @@ import { checkSounds, defaultSound, sampledInstrument, soundsFor } from '../audi
 import { encodeWav } from '../audio/wav'
 import { KIND_LABELS, cloneObject, makeObject } from '../world/objects'
 import { harmonyOf } from '../world/pitch'
-import { PRESETS } from '../world/presets'
+import { PRESETS, PRESET_SCENES_FILE } from '../world/presets'
 import { World } from '../world/sim'
 import { LIMITS, type Kind, type Scene, type Settings, type SoundId, type WorldObject } from '../world/types'
 import { noteAudio } from './audio-log'
@@ -458,6 +458,27 @@ export class Controller {
 
   clear() {
     this.loadScene({ name: 'Untitled', settings: this.settings, objects: [] }, null)
+  }
+
+  /**
+   * On the dev server only: write this sky into the repo as mood `id`'s scene,
+   * so the app ships with it (vite.config.ts writes the file).
+   */
+  async saveAsPreset(id: string) {
+    const p = PRESETS.find((x) => x.id === id)
+    if (!import.meta.env.DEV || !p) return
+    // Volume is the listener's, not the scene's, so the mood keeps the default.
+    const { volume: _volume, ...settings } = this.ui.get().settings
+    const objects = this.world.objects.map(({ id: _id, ...o }) => o)
+    try {
+      const res = await fetch('/__save-preset', { method: 'POST', body: JSON.stringify({ id, scene: { settings, objects } }) })
+      if (!res.ok) throw new Error(await res.text())
+    } catch (e) {
+      this.toast(`Couldn't save ${p.name}: ${e instanceof Error ? e.message : e}`, 6000)
+      return
+    }
+    this.ui.set({ presetId: id, sceneName: p.name })
+    this.toast(`Saved as ${p.name}. Commit ${PRESET_SCENES_FILE} to keep it.`, 6000)
   }
 
   // ----------------------------------------------------------- objects

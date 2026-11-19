@@ -82,6 +82,12 @@ const TAIL_DB = -60
 /** The onset must be within this of the start of the written file. */
 const ONSET_LIMIT_MS = 5
 /**
+ * A recording further than this from its note's pitch gets a warning. Pianos
+ * are tuned a little sharp at the top and flat at the bottom on purpose
+ * (stretch tuning), so this leaves room for that.
+ */
+const OUT_OF_TUNE_CENTS = 15
+/**
  * Gaps wider than this between recorded notes get a warning. Every 6
  * semitones, no note is played more than 3 from a recording (decision 0003).
  */
@@ -235,10 +241,57 @@ function loudness(samples, channels) {
   return best
 }
 
+/**
+ * How far a note's pitch is from `midi`, in cents, or null if it can't tell.
+ * Measured on a stretch from 150 ms in, past the attack, by where the signal
+ * best matches itself shifted (YIN's difference function): first one period,
+ * searched within a semitone of the note, then refined over as many periods as
+ * fit in about 12 ms, which makes the high notes' short periods precise.
+ */
+function centsOff(samples, channels, midi) {
+  const frames = samples.length / channels
+  const mono = new Float32Array(frames)
+  for (let f = 0; f < frames; f++) for (let c = 0; c < channels; c++) mono[f] += samples[f * channels + c] / channels
+  const expected = SR / (440 * 2 ** ((midi - 69) / 12))
+  const start = Math.round(0.15 * SR)
+  const span = Math.round(0.12 * SR)
+  const maxLag = Math.ceil(Math.max(expected * 1.06, Math.round(0.012 * SR / expected) * expected * 1.01)) + 2
+  if (start + span + maxLag > frames) return null
+  const diff = (lag) => {
+    let sum = 0
+    for (let i = start; i < start + span; i++) {
+      const d = mono[i] - mono[i + lag]
+      sum += d * d
+    }
+    return sum
+  }
+  // The best lag between lo and hi, to a fraction of a sample.
+  const best = (lo, hi) => {
+    let at = lo
+    let min = Infinity
+    const values = new Map()
+    for (let lag = lo; lag <= hi; lag++) {
+      const v = diff(lag)
+      values.set(lag, v)
+      if (v < min) [min, at] = [v, lag]
+    }
+    if (at === lo || at === hi) return null
+    const [a, b, c] = [values.get(at - 1), min, values.get(at + 1)]
+    const shift = a + c - 2 * b > 0 ? (a - c) / (2 * (a + c - 2 * b)) : 0
+    return at + shift
+  }
+  const one = best(Math.floor(expected / 1.06), Math.ceil(expected * 1.06))
+  if (one === null) return null
+  const n = Math.max(1, Math.round(0.012 * SR / one))
+  const many = n === 1 ? one : best(Math.floor(n * one - one * 0.3), Math.ceil(n * one + one * 0.3))
+  if (many === null) return null
+  return 1200 * Math.log2(expected / (many / n))
+}
+
 // ---------------------------------------------------------------- one note
 
 /** Trims a recorded note: silence before it, the tail after it dies away. */
-function trim(file, spec, channels) {
+function trim(file, spec, channels, midi) {
   const raw = decode(file, channels)
   const { frame, peak, abs, background } = onsetOf(raw, channels, spec.onsetDb ?? -40)
   if (peak === 0) fail(`${show(file)} is silent`)
@@ -257,7 +310,11 @@ function trim(file, spec, channels) {
     const g = Math.min(1, f / fadeIn, (frames - f) / fadeOut)
     if (g < 1) for (let c = 0; c < channels; c++) note[f * channels + c] *= g
   }
-  return { samples: note, trimmed: start / SR, seconds: frames / SR, loudness: loudness(note, channels), peak }
+  const cents = centsOff(note, channels, midi)
+  if (cents === null) warn(`${show(file)}: couldn't measure its pitch; check it's ${noteName(midi)}`)
+  else if (Math.abs(cents) > OUT_OF_TUNE_CENTS)
+    warn(`${show(file)}: ${Math.abs(cents).toFixed(0)} cents ${cents > 0 ? 'sharp' : 'flat'} of ${noteName(midi)} (more than ${OUT_OF_TUNE_CENTS})`)
+  return { samples: note, trimmed: start / SR, seconds: frames / SR, loudness: loudness(note, channels), peak, cents }
 }
 
 function encode(samples, channels, path) {
@@ -341,12 +398,13 @@ function prepare({ id, spec, layers }) {
   const channels = spec.stereo ? 2 : 1
   const names = layers.single ? ['single'] : ['soft', 'hard']
   console.log(`\n${id}: ${spec.name} (${spec.kinds.join(', ')})`)
+  if (layers.single && spec.softDb !== undefined) warn(`${id}: softDb does nothing, since its notes are recorded at one strength`)
 
   // Trim every recorded note.
   const notes = {}
   for (const layer of names) {
     notes[layer] = new Map()
-    for (const [midi, file] of layers[layer]) notes[layer].set(midi, { ...trim(file, spec, channels), source: file })
+    for (const [midi, file] of layers[layer]) notes[layer].set(midi, { ...trim(file, spec, channels, midi), source: file })
   }
 
   // A note recorded in one layer only is made from the other layer's (unless fill is false).
@@ -409,7 +467,7 @@ function prepare({ id, spec, layers }) {
       console.log(
         `  ${file.padEnd(16)} ${n.borrowed ? `from ${n.borrowed}`.padEnd(14) : `trimmed ${(n.trimmed * 1000).toFixed(0).padStart(4)} ms`}` +
           `  ${n.seconds.toFixed(2)} s  gain ${db(gain) >= 0 ? '+' : ''}${db(gain).toFixed(1)} dB` +
-          `  onset ${onsetMs.toFixed(1)} ms  ${(size / 1024).toFixed(0)} KB`,
+          `  onset ${onsetMs.toFixed(1)} ms  pitch ${n.cents === null ? '?' : `${n.cents >= 0 ? '+' : ''}${n.cents.toFixed(0)}¢`}  ${(size / 1024).toFixed(0)} KB`,
       )
     }
     console.log(`  ${label}: ${midis.length} notes, ${spread}`)

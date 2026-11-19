@@ -36,7 +36,7 @@ Out of scope:
 | T2. Instruments from a manifest | Done |  |
 | T3. Load instruments when they're needed | Done |  |
 | T4. A sound picker for 5 to 8 choices | Done |  |
-| T5. Your first instruments | Not started |  |
+| T5. Your first instruments | In progress |  |
 | T6. Check on the iPhone | Not started |  |
 
 ### T1. Instrument format and pipeline
@@ -183,6 +183,41 @@ Loading every instrument at Begin listening would make the start slower with eac
 - Judge by ear the two rules T2 left open: Length scaling the release of sampled orbit instruments, and strength still scaling the level within a layer.
 - Add each to [CREDITS.md](../CREDITS.md) with where it came from. If any samples come from a pack or library rather than your own recordings, check that its licence allows them in a paid app.
 - Optional: change one or two scenes to use the new sounds, so they're heard without opening the picker.
+
+**What's built.**
+
+- **Three instruments,** each F2 to F6 every 6 semitones (9 notes; F2 and B2 added for orbits' low steps), offered for chimes, pulses and orbits, with a 3 s release: **Piano** (soft and hard; it replaced the synthesized Felt piano and keeps the id `piano`), **Harpsichord** (one strength, 4 s tails) and **Rhodes** (soft and hard). Piano and Rhodes set `softDb` to −5; they were recorded 9.1 and 7.1 dB apart.
+- **Pitch check** in [prepare-instruments.mjs](../scripts/prepare-instruments.mjs): each recording's pitch, measured from 150 ms in (past the attack) by where the signal best matches itself a period later, refined over about 12 ms of periods so high notes are precise. It's printed with each note, and anything more than 15 cents off its name gets a warning, which leaves room for a piano's stretch tuning.
+- **`softDb` on a one-strength instrument** now gets a warning instead of doing nothing silently.
+- **Moods from the app:** on the dev server only, the Scenes panel ends with "Developer: save this sky as [mood] · Save as default", which picks the mood the sky came from. It posts the sky to the dev server ([vite.config.ts](../vite.config.ts)), which writes it into [preset-scenes.json](../src/world/preset-scenes.json) under the mood's id, one object per line. [presets.ts](../src/world/presets.ts) uses a mood's entry there in place of its built-in scene; the mood keeps its name, description and colours. Saved: the settings except Volume (the listener's, not the scene's) and every object as it is at that moment, including where chimes and drones have drifted to; ids are made fresh on each load. Saving doesn't reload the page, so the music keeps playing; that's why it's one file that always exists, since a new file makes Vite reload. The release build has neither the control nor the request.
+- **T2's open rules, kept:** Length scales a sampled orbit instrument's release, and strength scales the level within a layer.
+
+**Checks:**
+
+- **Tuning** (the script, cents from each note's name):
+
+  | Instrument | Range | Furthest |
+  | --- | --- | --- |
+  | Rhodes, soft and hard | −3 to +2 | F2 soft −3 |
+  | Piano, soft | −1 to +6 | B3 and B5 +6 |
+  | Piano, hard | +1 to +14 | F2 +14 |
+  | Harpsichord | 0 to +12, and B2 +21 | B2 (warning) |
+
+  Harpsichord B2 starts sharp and settles, as plucked strings do: +21 from 0.1 to 0.3 s, +14 at 0.6 s, +7 at 1.5 s. Measured again at six points to rule out the method; its neighbours F2 and B3 stay within 10 and 4.
+- **Levels:** every note in a layer is set to −18 LUFS, the level T2 matched to Felt piano among the synthesized sounds. Against the piano's hard layer: piano soft −5 dB, harpsichord 0, Rhodes hard −2.2 and soft −7.2. The Rhodes was turned down to keep its attacks under the peak ceiling (accepted for now).
+- **Noise:** piano B2-soft's background is 29 dB under the note (the one warning; the line is 30). Every other recording is at least 31 dB under, the hard notes 38 to 50.
+- **Picker** at 390 px (the iPhone 14's width): orbits now offer 6, in two rows of three 114 px chips, every name on one line, "Harpsichord" (one letter over the script's 10) included.
+- **Moods from the app** (Chrome, dev server): saved Hearth and Morning Fog with a chime changed to Rhodes and Harpsichord, each the first save into the file and again after; the page didn't reload and the music kept playing. After a reload both moods built from the file with fresh ids, and Rain on Glass still from presets.ts. A request for `../../evil` was refused (400). `npm run build` contains neither the control nor the request. The test entries were removed.
+
+**Your listening:**
+
+| Check | Expected | Result |
+| --- | --- | --- |
+| Each instrument between its recordings (A3, D4, A4) | No stretch sounds wrong; where one does, record a note there | |
+| Harpsichord B2, and low orbit steps near it | The sharp start isn't noticeable | |
+| Piano B2-soft's tail | No hiss | |
+| Each instrument in a busy scene | Sits with the other sounds; Rhodes a little quieter is fine | |
+| Moods saved from the app | Each plays as built after a reload | |
 
 **Done when:** every new instrument plays in tune and at a similar level to the others, and CREDITS.md lists each one.
 

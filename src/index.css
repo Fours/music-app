@@ -1000,6 +1000,29 @@ p {
   color: var(--ink-2);
 }
 
+/* On the dev server only: save the sky as a mood's scene. */
+.dev-save {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 8px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--ink-2);
+}
+.dev-save label {
+  display: grid;
+  gap: 4px;
+  flex: 1;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.dev-save select {
+  font: inherit;
+  font-size: 14px;
+  padding: 6px 8px;
+}
+
 /* ---------------------------------------------------------------- welcome */
 
 .welcome {

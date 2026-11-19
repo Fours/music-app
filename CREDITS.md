@@ -12,4 +12,14 @@ peak-limited and encoded as AAC by `scripts/prepare-textures.mjs`.
 The waves recording is licensed for **non-commercial use only**. Replace it
 before using Skyloom in anything commercial.
 
-The piano's notes (`public/samples/instruments/piano/`) are recordings; where they came from is still to be added (milestone 3, T5).
+## Instruments
+
+The sampled instruments in `public/samples/instruments/` are made from these
+recordings by `scripts/prepare-instruments.mjs`, which trims each note, matches
+its level and encodes it as AAC.
+
+| Instrument | Notes | Recorded by | Licence |
+| ---------- | ----- | ----------- | ------- |
+| Piano (`piano/`) | F2 to F6 every 6 semitones, soft and hard | Kyle Willett, for Skyloom | Original recording |
+| Harpsichord (`harpsichord/`) | F2 to F6 every 6 semitones | Kyle Willett, for Skyloom | Original recording |
+| Rhodes (`rhodes/`) | F2 to F6 every 6 semitones, soft and hard | Kyle Willett, for Skyloom | Original recording |
