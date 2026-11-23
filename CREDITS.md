@@ -23,3 +23,5 @@ its level and encodes it as AAC.
 | Piano (`piano/`) | F2 to F6 every 6 semitones, soft and hard | Kyle Willett, for Skyloom | Original recording |
 | Harpsichord (`harpsichord/`) | F2 to F6 every 6 semitones | Kyle Willett, for Skyloom | Original recording |
 | Rhodes (`rhodes/`) | F2 to F6 every 6 semitones, soft and hard | Kyle Willett, for Skyloom | Original recording |
+| Guitar (`guitar/`) | The open strings, E2 to E4 | Kyle Willett, for Skyloom | Original recording |
+| Ukulele (`ukulele/`) | The open strings, C4 to A4 | Kyle Willett, for Skyloom | Original recording |

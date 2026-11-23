@@ -31,6 +31,28 @@ export const PLAYBACK_GAIN_DB = 6.6
 
 export const INSTRUMENTS: Instrument[] = [
   {
+    id: 'guitar',
+    name: 'Guitar',
+    kinds: [
+      'pulse',
+      'orbit'
+    ],
+    release: 3,
+    layers: [
+      {
+        name: 'single',
+        notes: {
+          E2: 'instruments/guitar/e2.m4a',
+          A2: 'instruments/guitar/a2.m4a',
+          D3: 'instruments/guitar/d3.m4a',
+          G3: 'instruments/guitar/g3.m4a',
+          B3: 'instruments/guitar/b3.m4a',
+          E4: 'instruments/guitar/e4.m4a'
+        }
+      }
+    ]
+  },
+  {
     id: 'harpsichord',
     name: 'Harpsichord',
     kinds: [
@@ -132,6 +154,26 @@ export const INSTRUMENTS: Instrument[] = [
           F5: 'instruments/rhodes/f5-hard.m4a',
           B5: 'instruments/rhodes/b5-hard.m4a',
           F6: 'instruments/rhodes/f6-hard.m4a'
+        }
+      }
+    ]
+  },
+  {
+    id: 'ukulele',
+    name: 'Ukulele',
+    kinds: [
+      'pulse',
+      'orbit'
+    ],
+    release: 3,
+    layers: [
+      {
+        name: 'single',
+        notes: {
+          C4: 'instruments/ukulele/c4.m4a',
+          E4: 'instruments/ukulele/e4.m4a',
+          G4: 'instruments/ukulele/g4.m4a',
+          A4: 'instruments/ukulele/a4.m4a'
         }
       }
     ]
