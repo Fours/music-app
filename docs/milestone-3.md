@@ -36,7 +36,7 @@ Out of scope:
 | T2. Instruments from a manifest | Done |  |
 | T3. Load instruments when they're needed | Done |  |
 | T4. A sound picker for 5 to 8 choices | Done |  |
-| T5. Your first instruments | In progress |  |
+| T5. Your first instruments | Done |  |
 | T6. Check on the iPhone | Not started |  |
 
 ### T1. Instrument format and pipeline
@@ -207,18 +207,18 @@ Loading every instrument at Begin listening would make the start slower with eac
   Harpsichord B2 starts sharp and settles, as plucked strings do: +21 from 0.1 to 0.3 s, +14 at 0.6 s, +7 at 1.5 s. Measured again at six points to rule out the method; its neighbours F2 and B3 stay within 10 and 4.
 - **Levels:** every note in a layer is set to −18 LUFS, the level T2 matched to Felt piano among the synthesized sounds. Against the piano's hard layer: piano soft −5 dB, harpsichord 0, Rhodes hard −2.2 and soft −7.2. The Rhodes was turned down to keep its attacks under the peak ceiling (accepted for now).
 - **Noise:** piano B2-soft's background is 29 dB under the note (the one warning; the line is 30). Every other recording is at least 31 dB under, the hard notes 38 to 50.
-- **Picker** at 390 px (the iPhone 14's width): orbits now offer 6, in two rows of three 114 px chips, every name on one line, "Harpsichord" (one letter over the script's 10) included.
+- **Picker** at 390 px (the iPhone 14's width), before Guitar and Ukulele: orbits offered 6, in two rows of three 114 px chips, every name on one line, "Harpsichord" (one letter over the script's 10) included.
 - **Moods from the app** (Chrome, dev server): saved Hearth and Morning Fog with a chime changed to Rhodes and Harpsichord, each the first save into the file and again after; the page didn't reload and the music kept playing. After a reload both moods built from the file with fresh ids, and Rain on Glass still from presets.ts. A request for `../../evil` was refused (400). `npm run build` contains neither the control nor the request. The test entries were removed.
 
-**Your listening:**
+**Your listening** (you accepted T5 without separate notes on each check):
 
 | Check | Expected | Result |
 | --- | --- | --- |
-| Each instrument between its recordings (A3, D4, A4) | No stretch sounds wrong; where one does, record a note there | |
-| Harpsichord B2, and low orbit steps near it | The sharp start isn't noticeable | |
-| Piano B2-soft's tail | No hiss | |
-| Each instrument in a busy scene | Sits with the other sounds; Rhodes a little quieter is fine | |
-| Moods saved from the app | Each plays as built after a reload | |
+| Each instrument between its recordings (A3, D4, A4) | No stretch sounds wrong; where one does, record a note there | Accepted |
+| Harpsichord B2, and low orbit steps near it | The sharp start isn't noticeable | Accepted |
+| Piano B2-soft's tail | No hiss | Accepted |
+| Each instrument in a busy scene | Sits with the other sounds; Rhodes a little quieter is fine | Accepted |
+| Moods saved from the app | Each plays as built after a reload | Accepted |
 
 **Done when:** every new instrument plays in tune and at a similar level to the others, and CREDITS.md lists each one.
 
