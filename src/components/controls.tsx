@@ -1,5 +1,4 @@
 import { useId, useRef, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react'
-import { RecordedIcon } from './icons'
 
 export function Slider({
   label,
@@ -99,25 +98,22 @@ export function Segmented<T extends string>({
 export interface SoundOption {
   value: string
   label: string
-  /** A recorded (sampled) instrument rather than a synthesized sound. */
-  sampled?: boolean
   /** Its notes are still loading. */
   busy?: boolean
 }
 
 /**
- * Columns for `n` choices, so the rows come out even: 3 → 3, 4 → 4, 5 and 6 →
- * rows of 3, 7 and 8 → rows of 4. At most 4, so a chip is at least about 72 px
- * wide in the 340 px panel, and names wrap to a second line rather than being cut.
+ * Columns for `n` choices: up to 4 in a single row, otherwise rows of 3 (5 and
+ * 6 → 2 rows, 7 and 8 → 3), so a chip is about 100 px wide in the 340 px panel
+ * and most names fit on one line.
  */
-const pickerColumns = (n: number) => Math.ceil(n / Math.ceil(n / 4))
+const pickerColumns = (n: number) => (n <= 4 ? n : 3)
 
 /**
  * The Sound field: a grid of chips in the segmented control's style, for 5 to
  * 8 choices (milestone 3, T4). A radio group: Tab lands on the chosen chip,
  * the arrows move and choose (Up and Down by a row), Home and End go to the
- * ends. Recorded instruments carry a small mark, which a pulsing dot replaces
- * while their notes load.
+ * ends. A recorded instrument shows a pulsing dot while its notes load.
  */
 export function SoundPicker<T extends string>({
   label = 'Sound',
@@ -173,12 +169,11 @@ export function SoundPicker<T extends string>({
             role="radio"
             aria-checked={i === current}
             aria-busy={o.busy || undefined}
-            aria-label={o.sampled ? `${o.label}, recorded` : o.label}
             tabIndex={i === Math.max(0, current) ? 0 : -1}
             className={i === current ? 'on' : ''}
             onClick={() => onChange(o.value)}
           >
-            <SoundName label={o.label} mark={o.busy ? <span className="loading-dot" aria-hidden /> : o.sampled && <RecordedIcon className="sound-mark" />} />
+            <SoundName label={o.label} mark={o.busy && <span className="loading-dot" aria-hidden />} />
           </button>
         ))}
       </div>

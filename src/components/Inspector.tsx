@@ -19,7 +19,7 @@ const pctFmt = (v: number) => `${Math.round(v * 100)}%`
 
 /** A Sound field's choices: the kind's synthesized sounds, then its sampled instruments, marked while their notes load. */
 const soundOptions = (kind: InstrumentKind, loading: string[]) =>
-  soundsFor(kind).map((s) => ({ value: s.id, label: s.label, sampled: s.sampled, busy: loading.includes(s.id) }))
+  soundsFor(kind).map((s) => ({ value: s.id, label: s.label, busy: loading.includes(s.id) }))
 
 /** Orbit Size: the step length it snaps to. */
 const stepFmt = (v: number) => ORBIT_STEP_NAMES[orbitStepIndex(v)]

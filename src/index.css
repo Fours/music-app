@@ -523,7 +523,7 @@ p {
   color: var(--ink);
   box-shadow: 0 1px 4px rgba(42, 45, 56, 0.14);
 }
-/* The Sound field: chips in the segmented control's style, in even rows (pickerColumns). */
+/* The Sound field: chips in the segmented control's style, one row of up to 4 or rows of 3 (pickerColumns). */
 .sound-picker {
   display: grid;
   grid-template-columns: repeat(var(--columns), minmax(0, 1fr));
@@ -558,12 +558,6 @@ p {
 }
 .sound-last {
   white-space: nowrap;
-}
-.sound-mark {
-  display: inline-block;
-  margin-left: 3px;
-  vertical-align: 0;
-  opacity: 0.45;
 }
 .sound-picker .loading-dot {
   margin-left: 4px;
