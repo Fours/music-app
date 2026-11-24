@@ -6,6 +6,14 @@ import { sampledInstrument } from './sounds'
 /** Notes fetched at once for one instrument. */
 const PARALLEL = 4
 
+/** How long an instrument took to have a note to play, for the debug badge (milestone 3, T6). */
+export interface FirstNote {
+  id: SoundId
+  ms: number
+  /** Loaded at Begin listening, with the scene's other sounds, rather than chosen while playing. */
+  atBegin: boolean
+}
+
 interface Load {
   /** Every note file, nearest the first request's pitch first. */
   files: string[]
@@ -28,6 +36,10 @@ export class InstrumentLoader {
   onChange?: () => void
   /** Called when none of an instrument's notes could be loaded. It can be asked for again. */
   onFailed?: (id: SoundId) => void
+  /** Each instrument's time to its first note, oldest first. */
+  readonly firstNotes: FirstNote[] = []
+  /** Set while Begin listening loads the scene's instruments, so their times are labelled as such. */
+  atBegin = false
 
   private buffers: Record<string, Tone.ToneAudioBuffer>
   private fetchNote: (file: string) => Promise<Tone.ToneAudioBuffer>
@@ -51,11 +63,14 @@ export class InstrumentLoader {
     const load: Load = { files, loaded: 0, failed: 0, done: Promise.resolve() }
     this.loads.set(id, load)
     const queue = [...files]
+    const started = performance.now()
+    const atBegin = this.atBegin
     const worker = async () => {
       for (let file = queue.shift(); file; file = queue.shift()) {
         try {
           if (!this.buffers[file]) this.buffers[file] = await this.fetchNote(file)
           load.loaded++
+          if (load.loaded === 1) this.firstNotes.push({ id, ms: performance.now() - started, atBegin })
           for (const listener of this.noteListeners) listener(file)
         } catch (err) {
           load.failed++

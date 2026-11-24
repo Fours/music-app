@@ -37,7 +37,7 @@ Out of scope:
 | T3. Load instruments when they're needed | Done |  |
 | T4. A sound picker for 5 to 8 choices | Done |  |
 | T5. Your first instruments | Done |  |
-| T6. Check on the iPhone | Not started |  |
+| T6. Check on the iPhone | In progress |  |
 
 ### T1. Instrument format and pipeline
 
@@ -223,6 +223,23 @@ Loading every instrument at Begin listening would make the start slower with eac
 **Done when:** every new instrument plays in tune and at a similar level to the others, and CREDITS.md lists each one.
 
 ### T6. Check on the iPhone
+
+**What's built.** The audio debug badge (tap the Skyloom wordmark five times) has three new green lines, for the checks that had no number to read:
+
+- **begin → sound:** from the Begin listening tap to the music starting, with how many instruments and note files the scene loaded first ([controller.ts](../src/app/controller.ts)).
+- **decoded audio:** every texture loop and note loaded so far, as the 32-bit samples Web Audio keeps. In Chrome: 74.5 MB for the texture loops alone, 124.4 MB with every instrument.
+- **first note:** for each instrument, how long it took to have a note to play ([instrument-loader.ts](../src/audio/instrument-loader.ts)), marked "(at Begin)" when it loaded with the scene rather than being chosen while playing. The last four are shown.
+- A **load all** button next to the switches loads every instrument, for the memory check.
+
+**How to run the checks.**
+
+1. **Baseline:** build `660185a`, the last commit before this milestone, with the same Begin timer added, install it, and note "begin → sound" for a few launches (force-quit between them). Then install the current build. It also gives the old app size.
+2. **Time to sound:** build a scene with 2 recorded instruments (for example a Rhodes orbit and a guitar pulse), force-quit, reopen, tap Begin listening, and read the badge. Do it 3 times.
+3. **Not loaded yet:** in a playing scene, change an object's sound to an instrument no other object plays, and read its "first note" line.
+4. **Busy scene:** add a third instrument (a ukulele chime, say), tap the badge to restart its counts, leave it 10 minutes with the screen on, and read "late ticks".
+5. **Memory:** tap **load all**, then read the decoded-audio line. For the device figure, use Instruments' Activity Monitor template and read the app's **WebContent** process: the notes are decoded there, so Xcode's Debug navigator, which shows only the app's own process, misses them (milestone 2, T1).
+6. **App size:** Settings → General → iPhone Storage → Skyloom → App Size.
+7. **Onsets:** run `npm run dev -- --host` on the Mac, and open `http://<the Mac's address>:5173/scripts/onset-check.html` in Safari on the iPhone, on the same Wi-Fi.
 
 | Check | Expected | Result |
 | --- | --- | --- |

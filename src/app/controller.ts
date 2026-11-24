@@ -58,6 +58,8 @@ export class Controller {
   /** Steps that ran after their own start time, so their notes played late. A sign of audio glitches. */
   lateTicks = 0
   private lastTickAt = 0
+  /** Begin listening's tap to the music starting, and what it loaded. For the debug badge (milestone 3, T6). */
+  beginStats: { ms: number; instruments: number; files: number } | null = null
 
   constructor() {
     this.loadPreset(PRESETS[0].id)
@@ -156,11 +158,10 @@ export class Controller {
   async begin() {
     if (this.ui.get().phase !== 'welcome') return
     this.ui.set({ phase: 'loading', loadProgress: 0 })
+    const started = performance.now()
+    const instruments = instrumentsIn(this.world.objects, harmonyOf(this.settings))
     try {
-      await engine.init(
-        (p) => this.ui.set({ loadProgress: p }),
-        instrumentsIn(this.world.objects, harmonyOf(this.settings)),
-      )
+      await engine.init((p) => this.ui.set({ loadProgress: p }), instruments)
     } catch (err) {
       console.error(err)
       this.ui.set({ phase: 'welcome' })
@@ -169,6 +170,11 @@ export class Controller {
     }
     this.connectAudio(true)
     this.ui.set({ phase: 'running', playing: true })
+    this.beginStats = {
+      ms: performance.now() - started,
+      instruments: instruments.length,
+      files: instruments.reduce((n, i) => n + engine.instruments.fileCount(i.id), 0),
+    }
     this.keepAudioAwake()
     this.listenToNativeAudio()
     // The lock screen's buttons act like Play and Pause in the app.

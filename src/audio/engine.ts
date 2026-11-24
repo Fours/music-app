@@ -105,7 +105,8 @@ export class AudioEngine {
     const total = TEXTURE_FILES.length + instruments.reduce((n, i) => n + this.instruments.fileCount(i.id), 0)
     const step = () => onProgress?.(++done / total)
     const buffers = this.samples
-    await Promise.all([
+    this.instruments.atBegin = true
+    const loading = Promise.all([
       reverb.ready,
       ...TEXTURE_FILES.map(async (file) => {
         buffers[file] ??= await loadSample(`${import.meta.env.BASE_URL}samples/${file}`)
@@ -113,6 +114,8 @@ export class AudioEngine {
       }),
       ...instruments.map((i) => this.instruments.load(i.id, i.nearMidi, step)),
     ])
+    this.instruments.atBegin = false
+    await loading
 
     this.buses = { dry, reverb, delay: this.delay, buffers, instruments: this.instruments }
     this.ready = true
@@ -267,6 +270,11 @@ export class AudioEngine {
         ? `${nativeSessionLabel()} · web ${nav.audioSession?.type ?? 'n/a'}`
         : (nav.audioSession?.type ?? 'n/a'),
     }
+  }
+
+  /** Decoded audio held in memory: every loaded texture loop and note, as 32-bit samples. */
+  decodedBytes(): number {
+    return Object.values(this.samples).reduce((n, b) => n + b.length * b.numberOfChannels * 4, 0)
   }
 
   level(): number {

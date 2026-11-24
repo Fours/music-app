@@ -1119,6 +1119,9 @@ p {
 .debug-recovery {
   color: #ffb4a2;
 }
+.debug-load {
+  color: #b8f0c0;
+}
 .debug-away {
   color: #ffd98a;
 }

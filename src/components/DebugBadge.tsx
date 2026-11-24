@@ -6,6 +6,26 @@ import { drawStats, perfSwitches, togglePerf, type PerfSwitches } from '../app/p
 import { refreshSession } from '../app/native-audio'
 import { useStore } from '../app/store'
 import { engine } from '../audio/engine'
+import { INSTRUMENTS } from '../audio/instruments'
+
+const seconds = (ms: number) => `${(ms / 1000).toFixed(2)} s`
+
+/**
+ * Begin listening's time to sound, each instrument's time to its first note,
+ * and the decoded audio in memory (milestone 3, T6).
+ */
+function loadLines(): string[] {
+  const begin = app.beginStats
+  const lines = [
+    begin
+      ? `begin → sound ${seconds(begin.ms)} · ${begin.instruments} instrument${begin.instruments === 1 ? '' : 's'}, ${begin.files} files`
+      : 'begin → sound –',
+    `decoded audio ${(engine.decodedBytes() / 1e6).toFixed(1)} MB`,
+  ]
+  for (const n of engine.instruments.firstNotes.slice(-4))
+    lines.push(`${n.id}: first note ${Math.round(n.ms)} ms${n.atBegin ? ' (at Begin)' : ''}`)
+  return lines
+}
 
 const clock = () => new Date().toTimeString().slice(0, 8)
 const mmss = (seconds: number) => {
@@ -37,6 +57,7 @@ export function DebugBadge() {
   const [away, setAway] = useState<string | null>(null)
   // Frame rate and audio timing since the badge was turned on or last tapped.
   const [perf, setPerf] = useState<string[]>([])
+  const [loads, setLoads] = useState<string[]>([])
   const reset = useRef(() => {})
 
   useEffect(() => {
@@ -126,6 +147,7 @@ export function DebugBadge() {
       refreshSession()
       setInfo(engine.debugInfo())
       showPerf()
+      setLoads(loadLines())
       const current = engine.context()
       if (current !== ctx) {
         ctx?.removeEventListener('statechange', onState)
@@ -175,7 +197,21 @@ export function DebugBadge() {
             {label}
           </button>
         ))}
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            // For the memory check: every instrument's notes, as if each were chosen.
+            for (const inst of INSTRUMENTS) void engine.instruments.load(inst.id)
+          }}
+        >
+          load all
+        </button>
       </div>
+      {loads.map((line, i) => (
+        <div key={i} className="debug-load">
+          {line}
+        </div>
+      ))}
       {perf.map((line, i) => (
         <div key={i} className="debug-perf">
           {line}
